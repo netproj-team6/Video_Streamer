@@ -6,6 +6,7 @@
 #include "ns3/point-to-point-grid.h"
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/wifi-module.h"
+#include "ns3/mobility-module.h"
 
 #include <iostream>
 
@@ -21,13 +22,13 @@ int main(int argc, char *argv[])
 	double ErrorRate = 0.00001;
 	uint32_t payloadSize = 1472; // bytes
 	uint64_t simulationTime = 3;
-    uint32_t nMpdu = 100;
+    uint32_t nMpdu = 10;
 
 	uint32_t numOfSwitches = 4;
 	uint32_t numOfStream= 3;
 	uint32_t numOfBalances= 2;
 	uint32_t numOfGlobalUsers= 2;
-	uint32_t numOfWifiUsers= 2;
+	uint32_t numOfWifiUsers= 1;
 
 	// Parsing 
 	CommandLine cmd;
@@ -78,8 +79,8 @@ int main(int argc, char *argv[])
 	////////// Server
 	NodeContainer streamServerNodes, receptionServerNode, balanceServerNodes;
 	streamServerNodes.Create(3);
-	balanceServerNodes.Create(2);
 	receptionServerNode.Create(1);
+	balanceServerNodes.Create(2);
 
 	PointToPointHelper p2pServer;
 	p2pServer.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
@@ -129,12 +130,12 @@ int main(int argc, char *argv[])
 	
 
 	////////// Wifi group
-	//////////////////// inner 
-    NodeContainer wifiApNode;
+	NodeContainer wifiApNode;
     wifiApNode.Create(1);
 	NodeContainer wifiStaNode;
     wifiStaNode.Create(numOfWifiUsers);
 
+	//////////////////// inner 
 	YansWifiChannelHelper channel = YansWifiChannelHelper::Default();
     YansWifiPhyHelper phy = YansWifiPhyHelper::Default();
     phy.SetChannel(channel.Create());
@@ -152,19 +153,32 @@ int main(int argc, char *argv[])
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", StringValue("HtMcs7"), 
 																						"ControlMode", StringValue("HtMcs0"));
 
-	NetDeviceContainer staDevice;
-    staDevice = wifi.Install(phy, mac, wifiStaNode);
+	NetDeviceContainer wifiStaDevice;
+    wifiStaDevice = wifi.Install(phy, mac, wifiStaNode);
 
     mac.SetType("ns3::ApWifiMac",
                 "Ssid", SsidValue(ssid),
                 "BeaconInterval", TimeValue(MicroSeconds(102400)),
                 "BeaconGeneration", BooleanValue(true));
 
-    NetDeviceContainer apDevice;
-    apDevice = wifi.Install(phy, mac, wifiApNode);
+    NetDeviceContainer wifiApDevice;
+    wifiApDevice = wifi.Install(phy, mac, wifiApNode);
 
-	//////////////////// outter 
-	NetDeviceContainer devices 
+	//////////////////// outter
+	PointToPointHelper p2pWifi;
+	p2pWifi.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
+	p2pWifi.SetChannelAttribute("Delay", StringValue("5ms"));
+
+	NetDeviceContainer WifiHubDevice;
+	NetDeviceContainer WifiGlobalDevice;
+	{
+		NetDeviceContainer nd = p2pWifi.Install(globalSwitches.Get(1), wifiApNode.Get(0));
+		WifiHubDevice.Add(nd.Get(0));
+		WifiGlobalDevice.Add(nd.Get(1));
+	}
+
+
+	////////// CSMA
 
 
 
@@ -180,75 +194,103 @@ int main(int argc, char *argv[])
     stack.Install(wifiStaNode);
 
 
-
 	///// 3. Assign address
-	Ipv4AddressHelper address;
-    address.SetBase("10.1.1.0", "255.255.255.0");
+	Ipv4AddressHelper GlobalAddress;
+    GlobalAddress.SetBase("10.1.1.0", "255.255.255.0");
 
 	////////// global switches 
 	Ipv4InterfaceContainer interfacesGS_Left;
 	Ipv4InterfaceContainer interfacesGS_Right;
 	Ipv4InterfaceContainer interfacesGS_Cross;
-	for (uint32_t i = 0; i < numOfSwitches; i++)
+	for (uint32_t i = 0; i < numOfSwitches - 1; i++)
 	{
-		interfacesGS_Left.Add(address.Assign(GS_LeftDevices.Get(i)));
-		interfacesGS_Right.Add(address.Assign(GS_RightDevices.Get(i)));
-		address.NewNetwork();
+		interfacesGS_Left.Add(GlobalAddress.Assign(GS_LeftDevices.Get(i)));
+		interfacesGS_Right.Add(GlobalAddress.Assign(GS_RightDevices.Get(i)));
+		GlobalAddress.NewAddress();
 	}
-	for (uint32_t i = 0; i < GS_CrossDevices.GetN(); i++)
+	for (uint32_t i = 0; i < (numOfSwitches / 2); i++)
 	{
-		interfacesGS_Cross.Add(address.Assign(GS_CrossDevices.Get(i)));
-		address.NewNetwork();
+		interfacesGS_Cross.Add(GlobalAddress.Assign(GS_CrossDevices.Get(i*2)));
+		interfacesGS_Cross.Add(GlobalAddress.Assign(GS_CrossDevices.Get(i*2+1)));
+		GlobalAddress.NewAddress();
 	}
 
 	////////// Server
-	Ipv4InterfaceContainer interfacesStreamHub;
-	Ipv4InterfaceContainer interfacesStream;
+	Ipv4InterfaceContainer streamHub_interfaces;
+	Ipv4InterfaceContainer Stream_interfaces;
 	for (uint32_t i = 0; i < StreamDevices.GetN(); i++)
 	{
-		interfacesStreamHub.Add(address.Assign(StreamHubDevices));
-		interfacesStream.Add(address.Assign(StreamDevices.Get(i)));
-		address.NewNetwork();
+		streamHub_interfaces.Add(GlobalAddress.Assign(StreamHubDevices));
+		Stream_interfaces.Add(GlobalAddress.Assign(StreamDevices.Get(i)));
+		GlobalAddress.NewAddress();
 	}
+	
+	Ipv4InterfaceContainer receptionGlobal_interfaces;
+	streamHub_interfaces.Add(GlobalAddress.Assign(StreamHubDevices));
+	receptionGlobal_interfaces.Add(GlobalAddress.Assign(ReceptionGlobalDevices));
+	GlobalAddress.NewAddress();
 
-	Ipv4InterfaceContainer interfacesReceptionGlobal;
-	interfacesStreamHub.Add(address.Assign(StreamHubDevices));
-	interfacesReceptionGlobal.Add(address.Assign(ReceptionGlobalDevices));
-	address.NewNetwork();
-
-
-	Ipv4AddressHelper addressBalance;
-    addressBalance.SetBase("192.168.1.0", "255.255.255.0");
-	Ipv4InterfaceContainer interfacesReceptionVirtual;
-	Ipv4InterfaceContainer interfacesBalances;
-	for (uint32_t i = 0; i < BalancesDevices.GetN(); i++)
+	
+	Ipv4AddressHelper balanceAddress;
+    balanceAddress.SetBase("192.168.1.0", "255.255.255.0");
+	Ipv4InterfaceContainer receptionVirtual_interfaces;
+	Ipv4InterfaceContainer balances_interfaces;
+	for (uint32_t i = 0; i < numOfBalances; i++)
 	{
-		interfacesReceptionVirtual.Add(addressBalance.Assign(ReceptionDevices.Get(i)));
-		interfacesBalances.Add(addressBalance.Assign(BalancesDevices.Get(i)));
-		address.NewNetwork();
+		receptionVirtual_interfaces.Add(balanceAddress.Assign(ReceptionDevices.Get(i)));
+		balances_interfaces.Add(balanceAddress.Assign(BalancesDevices.Get(i)));
+		balanceAddress.NewAddress();
 	}
 
-
+	
 	////////// Global Users
-	Ipv4InterfaceContainer interfacesGlobalUserHub;
-	Ipv4InterfaceContainer interfacesGlobalUsers;
+	Ipv4InterfaceContainer globalUserHub_interfaces;
+	Ipv4InterfaceContainer globalUsers_interfaces;
 	for (uint32_t i = 0; i < GlobalUsersDevices.GetN(); i++)
 	{
-		interfacesGlobalUserHub.Add(address.Assign(GlobalUserHubDevices));
-		interfacesGlobalUsers.Add(address.Assign(GlobalUsersDevices.Get(i)));
-		address.NewNetwork();
+		globalUserHub_interfaces.Add(GlobalAddress.Assign(GlobalUserHubDevices.Get(i)));
+		globalUsers_interfaces.Add(GlobalAddress.Assign(GlobalUsersDevices.Get(i)));
+		GlobalAddress.NewAddress();
 	}	
-
-
+	
+	
 	////////// Wifi group
+	//////////////////// inner
+	Ipv4AddressHelper wifiAddress;
+    wifiAddress.SetBase("192.168.2.0", "255.255.255.0");
+    Ipv4InterfaceContainer Sta_interface;
+	Sta_interface = wifiAddress.Assign(wifiStaDevice);
+    Ipv4InterfaceContainer Ap_interface;
+    Ap_interface = wifiAddress.Assign(wifiApDevice);
+	
 
+	MobilityHelper mobility;
+    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
 
+	positionAlloc->Add(Vector(0.0, 0.0, 0.0));
+	for (uint32_t i = 0; i < numOfWifiUsers; i++)
+	{
+		positionAlloc->Add(Vector(1.0 * (double)(i+1), 0.0, 0.0));
+	}
+    mobility.SetPositionAllocator(positionAlloc);
+
+    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+
+    mobility.Install(wifiApNode);
+    mobility.Install(wifiStaNode);
+
+	//////////////////// outer
+	
+	Ipv4InterfaceContainer WifiHub_interfaces;
+	WifiHub_interfaces.Add(GlobalAddress.Assign(WifiHubDevice));
+	WifiHub_interfaces.Add(GlobalAddress.Assign(WifiGlobalDevice));
+	GlobalAddress.NewAddress();
 
 
 	///// 4. Set up applications
-	auto server_node = globalSwitches.Get(0);
-	auto server_ip = interfacesGS_Left.GetAddress(0);
-	auto client_node = globalUserNodes.Get(0);
+	auto server_node = wifiStaNode.Get(0);
+	auto server_ip = Sta_interface.GetAddress(0);
+	auto client_node = balanceServerNodes.Get(0);
 
 	UdpServerHelper myServer(9);
 	ApplicationContainer serverApp = myServer.Install(server_node);
@@ -263,8 +305,13 @@ int main(int argc, char *argv[])
 	ApplicationContainer clientApp = myClient.Install(client_node);
     clientApp.Start(Seconds(1.0));
     clientApp.Stop(Seconds(simulationTime + 1));
+	// Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+	
+	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("skku_chat.routes", std::ios::out);
+	Ipv4GlobalRoutingHelper globalRouting;
+	globalRouting.PopulateRoutingTables();
+	globalRouting.PrintRoutingTableAllAt (Seconds (0.1), routingStream);
 
-	Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
 	Simulator::Stop(Seconds(simulationTime + 1));
     Simulator::Run();
