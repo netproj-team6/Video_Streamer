@@ -7,12 +7,13 @@
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/wifi-module.h"
 #include "ns3/mobility-module.h"
+#include "ns3/csma-module.h"
 
 #include <iostream>
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("week4");
+NS_LOG_COMPONENT_DEFINE("skku_chat");
 
 int main(int argc, char *argv[])
 {
@@ -29,6 +30,7 @@ int main(int argc, char *argv[])
 	uint32_t numOfBalances= 2;
 	uint32_t numOfGlobalUsers= 2;
 	uint32_t numOfWifiUsers= 1;
+	uint32_t numOfCsma= 3;
 
 	// Parsing 
 	CommandLine cmd;
@@ -179,20 +181,47 @@ int main(int argc, char *argv[])
 
 
 	////////// CSMA
+	//////////////////// inner
+	NodeContainer csmaNodes;	
+	csmaNodes.Create(numOfCsma);
 
+	NodeContainer csma_GS_Nodes;
+	csma_GS_Nodes.Add(globalSwitches.Get(3));
+	csma_GS_Nodes.Add(csmaNodes);
+	
+
+	CsmaHelper csma;
+    csma.SetChannelAttribute("DataRate", StringValue("100Mbps"));
+    csma.SetChannelAttribute("Delay", TimeValue(NanoSeconds(6560)));
+
+	NetDeviceContainer csma_GS_Devices;
+	csma_GS_Devices = csma.Install(csma_GS_Nodes);
+	// NetDeviceContainer csmaHubDevices;
+	// csmaHubDevices = csma.Install(globalSwitches.Get(3));
+
+	//////////////////// outer
+	// PointToPointHelper p2pCsma;
+	// p2pCsma.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
+	// p2pCsma.SetChannelAttribute("Delay", StringValue("5ms"));
+
+	
+	// csmaHubDevices = p2pCsma.Install(globalSwitches.Get(3), csmaNodes.Get(0));
 
 
 
 	///// 2. Install internet stack
 	InternetStackHelper stack;
-	stack.Install(globalSwitches);
+	stack.Install(globalSwitches.Get(0));
+	stack.Install(globalSwitches.Get(1));
+	stack.Install(globalSwitches.Get(2));
 	stack.Install(streamServerNodes);
 	stack.Install(receptionServerNode);
 	stack.Install(balanceServerNodes);
 	stack.Install(globalUserNodes);
 	stack.Install(wifiApNode);
     stack.Install(wifiStaNode);
-
+	stack.Install(csma_GS_Nodes);
+	// stack.InstallAll();
 
 	///// 3. Assign address
 	Ipv4AddressHelper GlobalAddress;
@@ -202,7 +231,7 @@ int main(int argc, char *argv[])
 	Ipv4InterfaceContainer interfacesGS_Left;
 	Ipv4InterfaceContainer interfacesGS_Right;
 	Ipv4InterfaceContainer interfacesGS_Cross;
-	for (uint32_t i = 0; i < numOfSwitches - 1; i++)
+	for (uint32_t i = 0; i < numOfSwitches; i++)
 	{
 		interfacesGS_Left.Add(GlobalAddress.Assign(GS_LeftDevices.Get(i)));
 		interfacesGS_Right.Add(GlobalAddress.Assign(GS_RightDevices.Get(i)));
@@ -287,10 +316,51 @@ int main(int argc, char *argv[])
 	GlobalAddress.NewAddress();
 
 
+	////////// CSMA
+	//////////////////// inner
+	Ipv4AddressHelper csmaAddress;
+    csmaAddress.SetBase("192.168.3.0", "255.255.255.0");
+
+	Ipv4InterfaceContainer csma_GS_interfaces;
+	// Ipv4InterfaceContainer csmaHub_interfaces;
+	// csmaHub_interfaces.Add(csmaAddress.Assign(csmaHubDevices));
+	// for (uint32_t i = 0; i < csmaHub_interfaces.GetN(); i++)
+	// {
+	// 	std::cout << csmaHub_interfaces.GetAddress(i) << std::endl;
+	// }
+	csma_GS_interfaces = csmaAddress.Assign(csma_GS_Devices);
+	// for (uint32_t i = 0; i < csma_GS_interfaces.GetN(); i++)
+	// {
+	// 	std::cout << csma_GS_interfaces.GetAddress(i) << std::endl;
+	// }
+
+
+	// Ipv4InterfaceContainer csma_interfaces;
+	// {
+	// 	NetDeviceContainer tmp;
+	// 	tmp.Add(csmaHubDevices);
+	// 	tmp.Add(csmaDevices);
+	// 	csma_interfaces = csmaAddress.Assign(tmp);
+	// }
+
+	// for (uint32_t i = 0; i < csma_interfaces.GetN(); i++)
+	// {
+	// 	std::cout << csma_interfaces.GetAddress(i) << std::endl;
+	// }
+
+	//////////////////// outer
+	// Ipv4InterfaceContainer csmaHub_interfaces;
+	// csmaHub_interfaces = (GlobalAddress.Assign(csmaHubDevices));
+	// // GlobalAddress.NewAddress();
+	// for (uint32_t i = 0; i < csmaHub_interfaces.GetN(); i++)
+	// {
+	// 	std::cout << csmaHub_interfaces.GetAddress(i) << std::endl;
+	// }
+
 	///// 4. Set up applications
-	auto server_node = wifiStaNode.Get(0);
-	auto server_ip = Sta_interface.GetAddress(0);
-	auto client_node = balanceServerNodes.Get(0);
+	auto server_node = csma_GS_Nodes.Get(1);
+	auto server_ip = csma_GS_interfaces.GetAddress(1);
+	auto client_node = globalUserNodes.Get(1);
 
 	UdpServerHelper myServer(9);
 	ApplicationContainer serverApp = myServer.Install(server_node);
@@ -322,73 +392,5 @@ int main(int argc, char *argv[])
     std::cout << "Throughput: " << throughtput << " Mbps" << "\n";
 
 
-	// nodes
-	// ,
-	// , wifiStaNode, csmaSwitchNode;
-
-	// // Channels 
-
-
-	// // Net Device 
-
-
-	// // Stack 
-
-	// // address 
-
-
-	// // Server
-
-	// // Client 
-
-
-	// // Call back
-	// NodeContainer nodes;
-	// nodes.Create(2);
-	
-
-	// std::string my_data_rate, my_delay;
-	// CommandLine cmd;
-	// cmd.AddValue("DataRate", "Link Data rate", my_data_rate);
-	// cmd.AddValue("Delay", "Link Delay", my_delay);
-	// cmd.Parse(argc, argv);
-
-	// PointToPointHelper p2p;
-	// p2p.SetDeviceAttribute("DataRate", StringValue(my_data_rate));
-	// p2p.SetChannelAttribute("Delay", StringValue(my_delay));
-
-	// NetDeviceContainer devices;
-	// devices = p2p.Install(nodes);
-
-	// InternetStackHelper stack;
-	// stack.Install(nodes);
-
-
-	// Ipv4AddressHelper addr;
-	// addr.SetBase("10.1.1.0", "255.255.255.0");
-	// Ipv4InterfaceContainer interfaces = addr.Assign(devices);
-
-
-	// UdpEchoClientHelper echoClient(interfaces.GetAddress(1), 9);
-	// echoClient.SetAttribute("MaxPackets", UintegerValue(15000));
-	// echoClient.SetAttribute("Interval", TimeValue(Seconds(0.001)));
-	// echoClient.SetAttribute("PacketSize", UintegerValue(1024));
-
-	// ApplicationContainer clientApps;
-	// clientApps.Add(echoClient.Install(nodes.Get(0)));
-	// clientApps.Start(Seconds(1.0));
-	// clientApps.Stop(Seconds(10.0));
-
-	// UdpEchoServerHelper echoServer(9);
-	// ApplicationContainer serverApps(echoServer.Install(nodes.Get(1)));
-	// serverApps.Start(Seconds(1.0));
-	// serverApps.Stop(Seconds(10.0));
-
-	// p2p.EnablePcapAll("2019314505");
-	// Simulator::Run();
-	// Simulator::Stop(Seconds(12.0));
-	// Simulator::Destroy();
-
 	return 0;
-
 }
