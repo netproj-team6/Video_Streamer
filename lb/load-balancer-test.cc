@@ -1,5 +1,6 @@
 #include "ns3/load-balancer-helper.h"
 #include "ns3/load-balancer.h"
+#include "ns3/load-balancer-header.h"
 
 #include <iostream>
 #include <fstream>
@@ -9,6 +10,7 @@
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/internet-module.h"
+#include "ns3/ipv4-address.h"
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/applications-module.h"
 
@@ -25,15 +27,33 @@ RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
     }
     else if (context == "DST0")
     {
-        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 receives " << packet->GetSize());
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
     }
     else if (context == "DST1")
     {
-        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 receives " << packet->GetSize());
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
     }
     else if (context == "DST2")
     {
-        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 receives " << packet->GetSize());
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
     }
 }
 
@@ -131,7 +151,7 @@ main(int argc, char *argv[])
     lb.SetAttribute("FirstAddress", AddressValue(backDSTAddress0));
     lb.SetAttribute("FirstWeight", UintegerValue(1));
     lb.SetAttribute("SecondAddress", AddressValue(backDSTAddress1));
-    lb.SetAttribute("SecondWeight", UintegerValue(5));
+    lb.SetAttribute("SecondWeight", UintegerValue(1));
     lb.SetAttribute("ThirdAddress", AddressValue(backDSTAddress2));
     lb.SetAttribute("ThirdWeight", UintegerValue(1));
     ApplicationContainer lbApp = lb.Install(nLB);

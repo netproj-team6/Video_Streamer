@@ -48,7 +48,6 @@ LoadBalancerHelper::Install(NodeContainer c) const
 Ptr<Application>
 LoadBalancerHelper::InstallPriv(Ptr <Node> node) const
 {
-//    Ptr <Application> app = m_factory.Create<LoadBalancer>();
     Ptr <Application> app = m_factory.Create<Application>();
     node->AddApplication(app);
 

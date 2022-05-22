@@ -1,4 +1,5 @@
 #include "load-balancer.h"
+#include "load-balancer-header.h"
 
 #include <iostream>
 
@@ -171,10 +172,16 @@ LoadBalancer::HandleRead(Ptr<Socket> socket)
         packet->RemoveAllPacketTags();
         packet->RemoveAllByteTags();
 
-        // todo add packet header
+        InetSocketAddress transport = InetSocketAddress::ConvertFrom(from);
+        uint32_t fromIpv4Address = transport.GetIpv4().Get();
+        uint16_t fromPort = transport.GetPort();
 
-        uint32_t fromIpv4 = InetSocketAddress::ConvertFrom(from).GetIpv4().Get();
-        Address target = AssignTargetAddress(fromIpv4);
+        LoadBalancerHeader header;
+        header.SetIpv4Address(fromIpv4Address);
+        header.SetPort(fromPort);
+        packet->AddHeader(header);
+
+        Address target = AssignTargetAddress(fromIpv4Address);
         socket->SendTo(packet, 0, target);
 
         if (InetSocketAddress::IsMatchingType(m_peerAddress0))
@@ -184,7 +191,7 @@ LoadBalancer::HandleRead(Ptr<Socket> socket)
         }
     }
 
-    // todo handle when client-streaming_server connection terminated
+    // todo handle when client-streaming_server connection terminated using seqTs
 }
 
 Address
