@@ -1,5 +1,7 @@
 #include "load-balancer.h"
 
+#include <iostream>
+
 #include "ns3/boolean.h"
 #include "ns3/uinteger.h"
 #include "ns3/double.h"
@@ -40,17 +42,29 @@ LoadBalancer::GetTypeId(void)
                           UintegerValue(80),
                           MakeUintegerAccessor(&LoadBalancer::m_port),
                           MakeUintegerChecker<uint16_t>())
-            .AddAttribute("FirstAddress", "First server address for load balancing",
+            .AddAttribute("FirstAddress", "Server address for load balancing",
                           AddressValue(),
                           MakeAddressAccessor(&LoadBalancer::m_peerAddress0),
                           MakeAddressChecker())
-            .AddAttribute("FirstPort", "First server port for load balancing",
-                          UintegerValue(80),
-                          MakeUintegerAccessor(&LoadBalancer::m_peerPort0),
-                          MakeUintegerChecker<uint16_t>())
-            .AddAttribute("FirstWeight", "First server weight for load balancing",
+            .AddAttribute("FirstWeight", "Server weight for load balancing",
                           UintegerValue(1),
                           MakeUintegerAccessor(&LoadBalancer::m_peerWeight0),
+                          MakeUintegerChecker<uint16_t>())
+            .AddAttribute("SecondAddress", "Server address for load balancing",
+                          AddressValue(),
+                          MakeAddressAccessor(&LoadBalancer::m_peerAddress1),
+                          MakeAddressChecker())
+            .AddAttribute("SecondWeight", "Server weight for load balancing",
+                          UintegerValue(1),
+                          MakeUintegerAccessor(&LoadBalancer::m_peerWeight1),
+                          MakeUintegerChecker<uint16_t>())
+            .AddAttribute("ThirdAddress", "Server address for load balancing",
+                          AddressValue(),
+                          MakeAddressAccessor(&LoadBalancer::m_peerAddress2),
+                          MakeAddressChecker())
+            .AddAttribute("ThirdWeight", "Server weight for load balancing",
+                          UintegerValue(1),
+                          MakeUintegerAccessor(&LoadBalancer::m_peerWeight2),
                           MakeUintegerChecker<uint16_t>())
             .AddTraceSource("Rx", "A packet has been received",
                             MakeTraceSourceAccessor(&LoadBalancer::m_rxTrace),
@@ -62,7 +76,10 @@ LoadBalancer::GetTypeId(void)
 }
 
 LoadBalancer::LoadBalancer()
-    : m_socket(0)
+    : m_socket(0),
+    m_peerCnt(3),
+    m_curRound(0),
+    m_curIndex(0)
 {
     NS_LOG_FUNCTION(this);
 }
@@ -70,10 +87,8 @@ LoadBalancer::LoadBalancer()
 LoadBalancer::~LoadBalancer()
 {
     NS_LOG_FUNCTION(this);
-    m_socket = 0;   // todo
+    m_socket = 0;
 }
-
-// todo void AddRemote(address, port, weight)
 
 void
 LoadBalancer::DoDispose(void)
@@ -112,7 +127,12 @@ LoadBalancer::StartApplication(void)
 
     m_socket->SetRecvCallback(MakeCallback(&LoadBalancer::HandleRead, this));
 
-    // todo set status map
+    m_states.push_back(std::make_pair(m_peerAddress0, m_peerWeight0 - 1));
+    m_states.push_back(std::make_pair(m_peerAddress1, m_peerWeight1 - 1));
+    m_states.push_back(std::make_pair(m_peerAddress2, m_peerWeight2 - 1));
+
+    m_maxWeight = ((m_peerWeight0 > m_peerWeight1) && (m_peerWeight0 > m_peerWeight2)) ? m_peerWeight0 :
+            ((m_peerWeight1 > m_peerWeight0) && (m_peerWeight1 > m_peerWeight2)) ? m_peerWeight1 : m_peerWeight2;
 }
 
 void
@@ -123,16 +143,16 @@ LoadBalancer::StopApplication(void)
     if (m_socket != 0)
     {
         m_socket->Close();
-        m_socket->SetRecvCallback(MakeNullCallback <void, Ptr <Socket>> ());
+        m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
     }
 }
 
 void
-LoadBalancer::HandleRead(Ptr <Socket> socket)
+LoadBalancer::HandleRead(Ptr<Socket> socket)
 {
     NS_LOG_FUNCTION(this);
 
-    Ptr <Packet> packet;
+    Ptr<Packet> packet;
     Address from;
     Address localAddress;
 
@@ -151,8 +171,11 @@ LoadBalancer::HandleRead(Ptr <Socket> socket)
         packet->RemoveAllPacketTags();
         packet->RemoveAllByteTags();
 
-        NS_LOG_LOGIC("Load balancing packet");
-        socket->SendTo(packet, 0, m_peerAddress0);
+        // todo add packet header
+
+        uint32_t fromIpv4 = InetSocketAddress::ConvertFrom(from).GetIpv4().Get();
+        Address target = AssignTargetAddress(fromIpv4);
+        socket->SendTo(packet, 0, target);
 
         if (InetSocketAddress::IsMatchingType(m_peerAddress0))
         {
@@ -162,8 +185,45 @@ LoadBalancer::HandleRead(Ptr <Socket> socket)
     }
 
     // todo handle when client-streaming_server connection terminated
-    // todo update session state
-    // todo update status map
+}
+
+Address
+LoadBalancer::AssignTargetAddress(uint32_t from)
+{
+    uint16_t round;
+    uint16_t index;
+    Address target;
+
+    auto session = m_sessions.find(from);
+    if (session != m_sessions.end())
+    {
+        index = session->second;
+        target = m_states.at(index).first;
+        NS_LOG_DEBUG("### FIND\t" << from << " <=> " << target);
+        return target;
+    }
+
+    for (uint16_t i = 0; i < m_maxWeight; i++)
+    {
+        round = (m_curRound + i) % m_maxWeight;
+        for (uint16_t j = 0; j < m_peerCnt; j++)
+        {
+            index = (m_curIndex + i) % m_peerCnt;
+            if (m_states.at(index).second >= round)
+            {
+                m_sessions.insert(std::make_pair(from, index));
+                m_curRound = round + 1;
+                m_curIndex = index + 1;
+                target = m_states.at(index).first;
+                NS_LOG_DEBUG("### Assign\t" << from << " <=> " << target);
+                return target;
+            }
+        }
+    }
+
+    m_curRound = round + 1;
+    m_curIndex = index + 1;
+    return target;
 }
 
 } // ns3
