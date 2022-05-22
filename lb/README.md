@@ -35,7 +35,7 @@
     module.source = [
         # ... #
         'model/load-balancer.cc',
-        'model/load-balancer-helper.cc',
+        'model/load-balancer-header.cc',
         'helper/load-balancer-helper.cc'
         ]
     
