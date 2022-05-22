@@ -24,7 +24,7 @@
 
 - `load-balancer-helper.*` 파일들은 `src/applications/helper/` 경로에 위치시켜야 함
 
-- `load-balancer.*` 파일들은 `src/applications/model/` 경로에 위치시켜야 함
+- `load-balancer.*`, `load-balancer-header.*` 파일들은 `src/applications/model/` 경로에 위치시켜야 함
 
 - `./waf build`시 빌드되도록 `src/applications/wscript` 파일을 아래와 같이 수정해야 함
 
