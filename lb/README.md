@@ -10,6 +10,11 @@
 - Load Balancer 생성 및 초기 세팅을 위함
 - `src/applications/helper/` 경로에 위치
 
+### `load-balancer-header.h`, `load-balancer-header.cc`
+
+- Load Balancer가 Streaming Server에게 패킷 전달 시 클라이언트 Ipv4Address와 Port를 알려주기 위함
+- `src/applications/model/` 경로에 위치
+
 ### `load-balancer.h`, `load-balancer.cc`
 
 - 실질적인 Load Balancer 동작을 위함
@@ -25,21 +30,25 @@
 
   ```
   def build(bld):
-  	# ... #
-  	module.source = [
-  			# ... #
-  			'model/load-balancer.cc',
-              'helper/load-balancer-helper.cc',
-  			]
-  
-  	# ... #
-      headers.source = [
-  			# ... #
-  			'model/load-balancer.h',
-  			'helper/load-balancer-helper.h',
-  			]
-  
-  	# ... #
+    # ... #
+    
+    module.source = [
+        # ... #
+        'model/load-balancer.cc',
+        'model/load-balancer-helper.cc',
+        'helper/load-balancer-helper.cc'
+        ]
+    
+    # ... #
+    
+    headers.source = [
+        # ... #
+        'model/load-balancer.h',
+        'model/load-balancer-header.h',
+        'helper/load-balancer-helper.h'
+        ]
+    
+    # ... #
   ```
 
   
