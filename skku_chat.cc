@@ -9,11 +9,53 @@
 #include "ns3/mobility-module.h"
 #include "ns3/csma-module.h"
 
+#include "ns3/load-balancer-helper.h"
+
 #include <iostream>
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("skku_chat");
+
+static void
+RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
+{
+    if (context == "LB")
+    {
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << " LB   receives " << packet->GetSize());
+    }
+    else if (context == "DST0")
+    {
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
+    }
+    else if (context == "DST1")
+    {
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
+    }
+    else if (context == "DST2")
+    {
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
+    }
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -22,15 +64,16 @@ int main(int argc, char *argv[])
 	double DownRate = 0.0;
 	double ErrorRate = 0.00001;
 	uint32_t payloadSize = 1472; // bytes
-	uint64_t simulationTime = 3;
+	uint64_t simulationTime = 1;
     uint32_t nMpdu = 10;
 
 	uint32_t numOfSwitches = 4;
 	uint32_t numOfStream= 3;
-	uint32_t numOfBalances= 2;
-	uint32_t numOfGlobalUsers= 2;
+	uint32_t numOfGlobalUsers= 3;
 	uint32_t numOfWifiUsers= 1;
 	uint32_t numOfCsma= 3;
+
+	LogComponentEnable("LoadBalancer", LOG_LEVEL_ALL);
 
 	// Parsing 
 	CommandLine cmd;
@@ -79,10 +122,9 @@ int main(int argc, char *argv[])
 	// std::vector<>
 
 	////////// Server
-	NodeContainer streamServerNodes, receptionServerNode, balanceServerNodes;
+	NodeContainer streamServerNodes, balanceServerNode;
 	streamServerNodes.Create(3);
-	receptionServerNode.Create(1);
-	balanceServerNodes.Create(2);
+	balanceServerNode.Create(1);
 
 	PointToPointHelper p2pServer;
 	p2pServer.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
@@ -97,21 +139,13 @@ int main(int argc, char *argv[])
 		StreamDevices.Add(nd.Get(1));
 	}
 
-	NetDeviceContainer ReceptionGlobalDevices;
+	NetDeviceContainer balanceDevices;
 	{
-		NetDeviceContainer nd = p2pServer.Install(globalSwitches.Get(0), receptionServerNode.Get(0));
+		NetDeviceContainer nd = p2pServer.Install(globalSwitches.Get(0), balanceServerNode.Get(0));
 		StreamHubDevices.Add(nd.Get(0));
-		ReceptionGlobalDevices.Add(nd.Get(1));
+		balanceDevices.Add(nd.Get(1));
 	}
 
-	NetDeviceContainer ReceptionDevices;
-	NetDeviceContainer BalancesDevices;
-	for (uint32_t i = 0; i < numOfBalances; i++)
-	{
-		NetDeviceContainer nd = p2pServer.Install(receptionServerNode.Get(0), balanceServerNodes.Get(i));
-		ReceptionDevices.Add(nd.Get(0));
-		BalancesDevices.Add(nd.Get(1));
-	}
 
 	////////// Global Users
 	NodeContainer globalUserNodes;
@@ -196,32 +230,19 @@ int main(int argc, char *argv[])
 
 	NetDeviceContainer csma_GS_Devices;
 	csma_GS_Devices = csma.Install(csma_GS_Nodes);
-	// NetDeviceContainer csmaHubDevices;
-	// csmaHubDevices = csma.Install(globalSwitches.Get(3));
-
-	//////////////////// outer
-	// PointToPointHelper p2pCsma;
-	// p2pCsma.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
-	// p2pCsma.SetChannelAttribute("Delay", StringValue("5ms"));
-
-	
-	// csmaHubDevices = p2pCsma.Install(globalSwitches.Get(3), csmaNodes.Get(0));
-
-
 
 	///// 2. Install internet stack
 	InternetStackHelper stack;
-	stack.Install(globalSwitches.Get(0));
-	stack.Install(globalSwitches.Get(1));
-	stack.Install(globalSwitches.Get(2));
-	stack.Install(streamServerNodes);
-	stack.Install(receptionServerNode);
-	stack.Install(balanceServerNodes);
-	stack.Install(globalUserNodes);
-	stack.Install(wifiApNode);
-    stack.Install(wifiStaNode);
-	stack.Install(csma_GS_Nodes);
-	// stack.InstallAll();
+	// stack.Install(globalSwitches.Get(0));
+	// stack.Install(globalSwitches.Get(1));
+	// stack.Install(globalSwitches.Get(2));
+	// stack.Install(streamServerNodes);
+	// stack.Install(balanceServerNode);
+	// stack.Install(globalUserNodes);
+	// stack.Install(wifiApNode);
+    // stack.Install(wifiStaNode);
+	// stack.Install(csma_GS_Nodes);
+	stack.InstallAll();
 
 	///// 3. Assign address
 	Ipv4AddressHelper GlobalAddress;
@@ -254,33 +275,13 @@ int main(int argc, char *argv[])
 		GlobalAddress.NewAddress();
 	}
 	
-	Ipv4InterfaceContainer receptionGlobal_interfaces;
+	Ipv4InterfaceContainer balance_interfaces;
 	streamHub_interfaces.Add(GlobalAddress.Assign(StreamHubDevices));
-	receptionGlobal_interfaces.Add(GlobalAddress.Assign(ReceptionGlobalDevices));
+	balance_interfaces.Add(GlobalAddress.Assign(balanceDevices));
 	GlobalAddress.NewAddress();
 
-	
-	Ipv4AddressHelper balanceAddress;
-    balanceAddress.SetBase("192.168.1.0", "255.255.255.0");
-	Ipv4InterfaceContainer receptionVirtual_interfaces;
-	Ipv4InterfaceContainer balances_interfaces;
-	for (uint32_t i = 0; i < numOfBalances; i++)
-	{
-		receptionVirtual_interfaces.Add(balanceAddress.Assign(ReceptionDevices.Get(i)));
-		balances_interfaces.Add(balanceAddress.Assign(BalancesDevices.Get(i)));
-		balanceAddress.NewAddress();
-	}
+		
 
-	
-	////////// Global Users
-	Ipv4InterfaceContainer globalUserHub_interfaces;
-	Ipv4InterfaceContainer globalUsers_interfaces;
-	for (uint32_t i = 0; i < GlobalUsersDevices.GetN(); i++)
-	{
-		globalUserHub_interfaces.Add(GlobalAddress.Assign(GlobalUserHubDevices.Get(i)));
-		globalUsers_interfaces.Add(GlobalAddress.Assign(GlobalUsersDevices.Get(i)));
-		GlobalAddress.NewAddress();
-	}	
 	
 	
 	////////// Wifi group
@@ -322,45 +323,23 @@ int main(int argc, char *argv[])
     csmaAddress.SetBase("192.168.3.0", "255.255.255.0");
 
 	Ipv4InterfaceContainer csma_GS_interfaces;
-	// Ipv4InterfaceContainer csmaHub_interfaces;
-	// csmaHub_interfaces.Add(csmaAddress.Assign(csmaHubDevices));
-	// for (uint32_t i = 0; i < csmaHub_interfaces.GetN(); i++)
-	// {
-	// 	std::cout << csmaHub_interfaces.GetAddress(i) << std::endl;
-	// }
 	csma_GS_interfaces = csmaAddress.Assign(csma_GS_Devices);
-	// for (uint32_t i = 0; i < csma_GS_interfaces.GetN(); i++)
-	// {
-	// 	std::cout << csma_GS_interfaces.GetAddress(i) << std::endl;
-	// }
 
-
-	// Ipv4InterfaceContainer csma_interfaces;
-	// {
-	// 	NetDeviceContainer tmp;
-	// 	tmp.Add(csmaHubDevices);
-	// 	tmp.Add(csmaDevices);
-	// 	csma_interfaces = csmaAddress.Assign(tmp);
-	// }
-
-	// for (uint32_t i = 0; i < csma_interfaces.GetN(); i++)
-	// {
-	// 	std::cout << csma_interfaces.GetAddress(i) << std::endl;
-	// }
-
-	//////////////////// outer
-	// Ipv4InterfaceContainer csmaHub_interfaces;
-	// csmaHub_interfaces = (GlobalAddress.Assign(csmaHubDevices));
-	// // GlobalAddress.NewAddress();
-	// for (uint32_t i = 0; i < csmaHub_interfaces.GetN(); i++)
-	// {
-	// 	std::cout << csmaHub_interfaces.GetAddress(i) << std::endl;
-	// }
+		////////// Global Users
+	GlobalAddress.NewNetwork();
+	Ipv4InterfaceContainer globalUserHub_interfaces;
+	Ipv4InterfaceContainer globalUsers_interfaces;
+	for (uint32_t i = 0; i < GlobalUsersDevices.GetN(); i++)
+	{
+		globalUserHub_interfaces.Add(GlobalAddress.Assign(GlobalUserHubDevices.Get(i)));
+		globalUsers_interfaces.Add(GlobalAddress.Assign(GlobalUsersDevices.Get(i)));
+		GlobalAddress.NewAddress();
+	}	
 
 	///// 4. Set up applications
-	auto server_node = csma_GS_Nodes.Get(1);
-	auto server_ip = csma_GS_interfaces.GetAddress(1);
-	auto client_node = globalUserNodes.Get(1);
+	auto server_node = globalUserNodes.Get(1);
+	auto server_ip = globalUsers_interfaces.GetAddress(1);
+	auto client_node = balanceServerNode.Get(0);
 
 	UdpServerHelper myServer(9);
 	ApplicationContainer serverApp = myServer.Install(server_node);
@@ -375,7 +354,80 @@ int main(int argc, char *argv[])
 	ApplicationContainer clientApp = myClient.Install(client_node);
     clientApp.Start(Seconds(1.0));
     clientApp.Stop(Seconds(simulationTime + 1));
+
+	// ////////////////////////////////////////////////////////
+
+	uint16_t lbPort = 1010;
+	uint16_t dstPort = 2020;
+	Address streamAddress0(InetSocketAddress(Stream_interfaces.GetAddress(0), dstPort));
+    Address streamAddress1(InetSocketAddress(Stream_interfaces.GetAddress(1), dstPort));
+    Address streamAddress2(InetSocketAddress(Stream_interfaces.GetAddress(2), dstPort));
+
+    LoadBalancerHelper lb;
+    lb.SetAttribute("Port", UintegerValue(lbPort));
+    lb.SetAttribute("FirstAddress", AddressValue(streamAddress0));
+    lb.SetAttribute("FirstWeight", UintegerValue(1));
+    lb.SetAttribute("SecondAddress", AddressValue(streamAddress1));
+    lb.SetAttribute("SecondWeight", UintegerValue(1));
+    lb.SetAttribute("ThirdAddress", AddressValue(streamAddress2));
+    lb.SetAttribute("ThirdWeight", UintegerValue(1));
+    ApplicationContainer lbApp = lb.Install(balanceServerNode);
+    lbApp.Start(Seconds(1.0));
+    lbApp.Stop(Seconds(simulationTime + 1));
+    lbApp.Get(0)->TraceConnect("Rx", "LB", MakeCallback(&RxTime));
+
+	// Address clientAddress0(InetSocketAddress(globalUsers_interfaces.GetAddress(0), lbPort));
+    // Address clientAddress1(InetSocketAddress(globalUsers_interfaces.GetAddress(1), lbPort));
+    // Address clientAddress2(InetSocketAddress(globalUsers_interfaces.GetAddress(1), lbPort));
+
+	Address lbAddress(InetSocketAddress(balance_interfaces.GetAddress(0), lbPort));
+
+	OnOffHelper src0("ns3::UdpSocketFactory", lbAddress);
+    src0.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    src0.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+    src0.SetAttribute("DataRate", DataRateValue(100000));
+    ApplicationContainer src0App = src0.Install(globalUserNodes.Get(0));
+    src0App.Start(Seconds(1.0));
+    src0App.Stop(Seconds(simulationTime + 1));
+
+    OnOffHelper src1("ns3::UdpSocketFactory", lbAddress);
+    src1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    src1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+    src1.SetAttribute("DataRate", DataRateValue(100000));
+    ApplicationContainer src1App = src1.Install(globalUserNodes.Get(1));
+    src1App.Start(Seconds(1.0));
+    src1App.Stop(Seconds(simulationTime + 1));
+
+    OnOffHelper src2("ns3::UdpSocketFactory", lbAddress);
+    src2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    src2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+    src2.SetAttribute("DataRate", DataRateValue(100000));
+    ApplicationContainer src2App = src2.Install(globalUserNodes.Get(2));
+    src2App.Start(Seconds(1.0));
+    src2App.Stop(Seconds(simulationTime + 1));
+
+	PacketSinkHelper dst0("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
+    ApplicationContainer dst0App = dst0.Install(streamServerNodes.Get(0));
+    dst0App.Start(Seconds(1.0));
+    dst0App.Stop(Seconds(5.0));
+    dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&RxTime));
+
+    PacketSinkHelper dst1("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
+    ApplicationContainer dst1App = dst1.Install(streamServerNodes.Get(1));
+    dst1App.Start(Seconds(1.0));
+    dst1App.Stop(Seconds(5.0));
+    dst1App.Get(0)->TraceConnect("Rx", "DST1", MakeCallback(&RxTime));
+
+    PacketSinkHelper dst2("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
+    ApplicationContainer dst2App = dst2.Install(streamServerNodes.Get(2));
+    dst2App.Start(Seconds(1.0));
+    dst2App.Stop(Seconds(5.0));
+    dst2App.Get(0)->TraceConnect("Rx", "DST2", MakeCallback(&RxTime));
+
+
 	// Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+
+	
 	
 	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("skku_chat.routes", std::ios::out);
 	Ipv4GlobalRoutingHelper globalRouting;
@@ -383,7 +435,7 @@ int main(int argc, char *argv[])
 	globalRouting.PrintRoutingTableAllAt (Seconds (0.1), routingStream);
 
 
-	Simulator::Stop(Seconds(simulationTime + 1));
+	Simulator::Stop(Seconds(simulationTime + 2));
     Simulator::Run();
     Simulator::Destroy();
 
