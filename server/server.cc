@@ -13,6 +13,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/seq-ts-header.h"
 #include "server.h"
+#include "ns3/load-balancer-header.h"
 
 namespace ns3 {
 
@@ -41,14 +42,6 @@ StreamingStreamer::GetTypeId (void)
                    UintegerValue (9),
                    MakeUintegerAccessor (&StreamingStreamer::m_port),
                    MakeUintegerChecker<uint16_t> ())
-		.AddAttribute ("RemoteAddress", "destination",
-										AddressValue(),
-										MakeAddressAccessor (&StreamingStreamer::m_peerAddress),
-										MakeAddressChecker ())
-		.AddAttribute ("RemotePort", "destination",
-										UintegerValue (0),
-										MakeUintegerAccessor (&StreamingStreamer::m_peerPort),
-										MakeUintegerChecker<uint16_t> ())
     .AddTraceSource ("Rx", "A packet has been received",
                      MakeTraceSourceAccessor (&StreamingStreamer::m_rxTrace),
                      "ns3::Packet::TracedCallback")
@@ -84,15 +77,6 @@ StreamingStreamer::~StreamingStreamer()
 }
 
 void
-StreamingStreamer::SetRemote (Address ip, uint16_t port)
-{
-	NS_LOG_FUNCTION (this << ip << port);
-	NS_LOG_INFO (ip << port);
-	m_peerAddress = ip;
-	m_peerPort = port;
-}
-
-void
 StreamingStreamer::DoDispose (void)
 {
   NS_LOG_FUNCTION (this);
@@ -104,7 +88,33 @@ StreamingStreamer::StartApplication (void)
 {
   NS_LOG_FUNCTION (this);
 
-  if (m_socket == 0)
+	if (m_socketRecv == 0)
+		{
+			TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+			m_socketRecv = Socket::CreateSocket (GetNode (), tid);
+
+			InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), m_port);
+			if (m_socketRecv->Bind (local) == -1)
+			{
+			NS_FATAL_ERROR ("Failed to bind socket");
+			}
+		if (addressUtils::IsMulticast (m_local))
+			{
+			Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socketRecv);
+			if (udpSocket)
+			{
+				udpSocket->MulticastJoinGroup (0, m_local);
+			}
+		else
+			{
+			NS_FATAL_ERROR ("Error: Failed to join multicast group");
+			}
+		}
+	}
+    // packet information check
+  	m_socketRecv->SetRecvCallback (MakeCallback (&StreamingStreamer::HandleRead, this));
+
+	if (m_socket == 0)
     {
       TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
       m_socket = Socket::CreateSocket (GetNode (), tid);
@@ -129,34 +139,8 @@ StreamingStreamer::StartApplication (void)
 				NS_ASSERT_MSG (false, "Incompatible address type: " << m_peerAddress);
 			}
     }
-
-	if (m_socketRecv == 0)
-		{
-			TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-			m_socketRecv = Socket::CreateSocket (GetNode (), tid);
-
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), m_port);
-      if (m_socketRecv->Bind (local) == -1)
-        {
-          NS_FATAL_ERROR ("Failed to bind socket");
-        }
-      if (addressUtils::IsMulticast (m_local))
-        {
-          Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket> (m_socketRecv);
-          if (udpSocket)
-            {
-              udpSocket->MulticastJoinGroup (0, m_local);
-            }
-          else
-            {
-              NS_FATAL_ERROR ("Error: Failed to join multicast group");
-            }
-        }
-		}
-    // packet information check
-  m_socketRecv->SetRecvCallback (MakeCallback (&StreamingStreamer::HandleRead, this));
-  // Setting streaming
-  m_socket->SetAllowBroadcast (true);
+	// Setting streaming
+	m_socket->SetAllowBroadcast (true);
 	ScheduleTransmit (Seconds (0.));
 }
 
@@ -248,6 +232,11 @@ StreamingStreamer::HandleRead (Ptr<Socket> socket)
 			SeqTsHeader pauseTs;
 			packet->RemoveHeader (pauseTs);
 			uint32_t pause = pauseTs.GetSeq();
+
+			LoadBalancerHeader header;
+        	packet->PeekHeader(header);
+        	m_peerAddress = header.GetIpv4Address();
+        	m_peerPort = header.GetPort();
 
 			if (pause == 1) isPause = true;
 			else isPause = false;

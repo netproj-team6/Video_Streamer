@@ -24,11 +24,9 @@
 
 namespace ns3 {
 
-StreamingServerHelper::StreamingServerHelper (Address address, uint16_t port)
+StreamingServerHelper::StreamingServerHelper (uint16_t port)
 {
   m_factory.SetTypeId (StreamingStreamer::GetTypeId ());
-	SetAttribute ("RemoteAddress", AddressValue (address));
-	SetAttribute ("RemotePort", UintegerValue (port));
 }
 
 void
