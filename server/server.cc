@@ -19,7 +19,7 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("StreamingServerApplication");
 
-NS_OBJECT_ENSURE_REGISTERED (Server);
+NS_OBJECT_ENSURE_REGISTERED (StreamingStreamer);
 
 // setting packet
 TypeId
@@ -112,36 +112,7 @@ StreamingStreamer::StartApplication (void)
 		}
 	}
     // packet information check
-  	m_socketRecv->SetRecvCallback (MakeCallback (&StreamingStreamer::HandleRead, this));
-
-	if (m_socket == 0)
-    {
-      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-      m_socket = Socket::CreateSocket (GetNode (), tid);
-			if (Ipv4Address::IsMatchingType (m_peerAddress) == true)
-			{
-				if (m_socket->Bind () == -1)
-					NS_FATAL_ERROR ("Failed to bind socket");
-				m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom (m_peerAddress), m_peerPort));
-			} else if (Ipv6Address::IsMatchingType(m_peerAddress) == true){
-				if (m_socket->Bind6 () == -1)
-					NS_FATAL_ERROR ("Failed to bind socket");
-				m_socket->Connect (Inet6SocketAddress (Ipv6Address::ConvertFrom(m_peerAddress), m_peerPort));
-			} else if (InetSocketAddress::IsMatchingType (m_peerAddress) == true) {
-				if (m_socket->Bind () == -1)
-					NS_FATAL_ERROR ("Failed to bind socket");
-				m_socket->Connect (m_peerAddress);
-			} else if (Inet6SocketAddress::IsMatchingType (m_peerAddress) == true) {
-				if (m_socket->Bind6 () == -1)
-					NS_FATAL_ERROR ("Failed to bind socket");
-				m_socket->Connect (m_peerAddress);
-			} else {
-				NS_ASSERT_MSG (false, "Incompatible address type: " << m_peerAddress);
-			}
-    }
-	// Setting streaming
-	m_socket->SetAllowBroadcast (true);
-	ScheduleTransmit (Seconds (0.));
+  	m_socketRecv->SetRecvCallback(MakeCallback (&StreamingStreamer::HandleRead, this)); 
 }
 
 void
@@ -223,24 +194,52 @@ void
 StreamingStreamer::HandleRead (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
-
   Ptr<Packet> packet;
   Address from;
   Address localAddress;
   while ((packet = socket->RecvFrom (from)))
     {
-			SeqTsHeader pauseTs;
-			packet->RemoveHeader (pauseTs);
-			uint32_t pause = pauseTs.GetSeq();
+		NS_LOG_UNCOND(packet->GetSize());
+		SeqTsHeader pauseTs;
+		packet->PeekHeader (pauseTs);
+		uint32_t pause = pauseTs.GetSeq();
 
-			LoadBalancerHeader header;
-        	packet->PeekHeader(header);
-        	m_peerAddress = header.GetIpv4Address();
-        	m_peerPort = header.GetPort();
+		LoadBalancerHeader header;
+		packet->PeekHeader(header);
+		uint32_t clientAddress = header.GetIpv4Address();
+		uint16_t clientPort = header.GetPort();
+		m_peerAddress =Ipv4Address(clientAddress);
+		m_peerPort = clientPort;
+		printf("%u %u \n",clientAddress,clientPort);
+		if (pause == 1) isPause = true;
+		else isPause = false;
 
-			if (pause == 1) isPause = true;
-			else isPause = false;
-
+		if (m_socket == 0)
+    	{
+      		TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+      		m_socket = Socket::CreateSocket (GetNode (), tid);
+			if (Ipv4Address::IsMatchingType (m_peerAddress) == true)
+			{
+				if (m_socket->Bind () == -1)
+					NS_FATAL_ERROR ("Failed to bind socket");
+				m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom (m_peerAddress), m_peerPort));
+			} else if (Ipv6Address::IsMatchingType(m_peerAddress) == true){
+				if (m_socket->Bind6 () == -1)
+					NS_FATAL_ERROR ("Failed to bind socket");
+				m_socket->Connect (Inet6SocketAddress (Ipv6Address::ConvertFrom(m_peerAddress), m_peerPort));
+			} else if (InetSocketAddress::IsMatchingType (m_peerAddress) == true) {
+				if (m_socket->Bind () == -1)
+					NS_FATAL_ERROR ("Failed to bind socket");
+				m_socket->Connect (m_peerAddress);
+			} else if (Inet6SocketAddress::IsMatchingType (m_peerAddress) == true) {
+				if (m_socket->Bind6 () == -1)
+					NS_FATAL_ERROR ("Failed to bind socket");
+				m_socket->Connect (m_peerAddress);
+			} else {
+				NS_ASSERT_MSG (false, "Incompatible address type: " << m_peerAddress);
+			}
+    	}
+		ScheduleTransmit (Seconds (0.));
     }
 }
 

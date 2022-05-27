@@ -52,8 +52,6 @@ public:
   StreamingStreamer ();
   virtual ~StreamingStreamer ();
 
-	void SetRemote (Address ip, uint16_t port);
-	void SetRemote (Address addr);
 
 	void SetDataSize (uint32_t dataSize);
 	uint32_t GetDataSize (void) const;

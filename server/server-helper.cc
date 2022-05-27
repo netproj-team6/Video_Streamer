@@ -27,6 +27,7 @@ namespace ns3 {
 StreamingServerHelper::StreamingServerHelper (uint16_t port)
 {
   m_factory.SetTypeId (StreamingStreamer::GetTypeId ());
+  SetAttribute ("Port", UintegerValue (port));
 }
 
 void
@@ -65,7 +66,7 @@ StreamingServerHelper::Install (NodeContainer c) const
 Ptr<Application>
 StreamingServerHelper::InstallPriv (Ptr<Node> node) const
 {
-  Ptr<Application> app = m_factory.Create<Server> ();
+  Ptr<Application> app = m_factory.Create<StreamingStreamer> ();
   node->AddApplication (app);
 
   return app;
