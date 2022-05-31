@@ -33,10 +33,6 @@ namespace ns3 {
                 UintegerValue(0),
                 MakeUintegerAccessor(&StreamingClient::m_peerPort),
                 MakeUintegerChecker<uint16_t>())
-            .AddAttribute("Port", "Port to receive packets",
-                UintegerValue(0),
-                MakeUintegerAccessor(&StreamingClient::m_port),
-                MakeUintegerChecker<uint16_t>())
             .AddAttribute("LossRate", "Loss rate of packets received from the server",
                 DoubleValue(0.),
                 MakeDoubleAccessor(&StreamingClient::m_lossRate),
@@ -75,7 +71,7 @@ namespace ns3 {
                 MakeTimeChecker())
             .AddTraceSource("Rx", "A packet has been received",
                 MakeTraceSourceAccessor(&StreamingClient::m_rxTrace),
-                "ns3::Packet::TracedCallback")
+                "ns3::Packet::AddressTracedCallback")
             .AddTraceSource("RxWithAddresses", "A packet has been received",
                 MakeTraceSourceAccessor(&StreamingClient::m_rxTraceWithAddresses),
                 "ns3::Packet::TwoAddressTracedCallback")
@@ -88,7 +84,6 @@ namespace ns3 {
         NS_LOG_FUNCTION(this);
 
         m_socket = 0;
-        m_socketRecv = 0;
         m_requestEvent = EventId();
         m_generatorEvent = EventId();
         m_consumerEvent = EventId();
@@ -98,9 +93,7 @@ namespace ns3 {
     StreamingClient::~StreamingClient()
     {
         NS_LOG_FUNCTION(this);
-
         m_socket = 0;
-        m_socketRecv = 0;
     }
 
     void StreamingClient::DoDispose(void)
@@ -139,31 +132,8 @@ namespace ns3 {
             }
         }
 
-        if (m_socketRecv == 0)
-        {
-            TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
-            m_socketRecv = Socket::CreateSocket(GetNode(), tid);
-            InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), m_port);
-            if (m_socketRecv->Bind(local) == -1)
-            {
-                NS_FATAL_ERROR("Failed to bind socket");
-            }
-            if (addressUtils::IsMulticast(m_local))
-            {
-                Ptr<UdpSocket> udpSocket = DynamicCast<UdpSocket>(m_socketRecv);
-                if (udpSocket)
-                {
-                    udpSocket->MulticastJoinGroup(0, m_local);
-                }
-                else
-                {
-                    NS_FATAL_ERROR("Error: Failed to join multicast group");
-                }
-            }
-        }
-
+        m_socket->SetRecvCallback(MakeCallback(&StreamingClient::HandleRead, this));
         m_socket->SetAllowBroadcast(true);
-        m_socketRecv->SetRecvCallback(MakeCallback(&StreamingClient::HandleRead, this));
         ScheduleRequest(Seconds(0.));
     }
 
@@ -176,12 +146,6 @@ namespace ns3 {
             m_socket->Close();
             m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket> >());
             m_socket = 0;
-        }
-        if (m_socketRecv != 0)
-        {
-            m_socketRecv->Close();
-            m_socketRecv->SetRecvCallback(MakeNullCallback<void, Ptr<Socket> >());
-            m_socketRecv = 0;
         }
 
         Simulator::Cancel(m_requestEvent);
@@ -217,7 +181,7 @@ namespace ns3 {
         {
             Ptr<Packet> p = Create<Packet>(m_size);
             SeqTsHeader requestType;
-            requestType.SetSeq(0);
+            requestType.SetSeq(2);
             p->AddHeader(requestType);
             m_socket->Send(p);
 
@@ -274,11 +238,11 @@ namespace ns3 {
         }
         if (m_frameBuffer.size() < m_bufferingSize)
         {
-            NS_LOG_INFO("Buffering: " << m_frameIdx << "\tRemain: " << m_frameBuffer.size());
+            NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 0\tBuffering: " << m_frameIdx << "\tRemain: " << m_frameBuffer.size());
 
             Ptr<Packet> p = Create<Packet>(m_size);
             SeqTsHeader requestType;
-            requestType.SetSeq(2);
+            requestType.SetSeq(0);
             p->AddHeader(requestType);
             m_socket->Send(p);
         }
@@ -287,11 +251,11 @@ namespace ns3 {
             if (m_frameIdx == m_frameBuffer.top())
             {
                 m_frameBuffer.pop();
-                NS_LOG_INFO("Consume: " << m_frameIdx << "\tRemain: " << m_frameBuffer.size());
+                NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 0\tConsume: " << m_frameIdx << "\tRemain: " << m_frameBuffer.size());
             }
             else
             {
-                NS_LOG_INFO("NoConsume: " << m_frameIdx << "\tRemain: " << m_frameBuffer.size());
+                NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 0\tNoConsume: " << m_frameIdx << "\tRemain: " << m_frameBuffer.size());
             }
             if (m_frameBuffer.size() > m_pauseSize)
             {
@@ -305,7 +269,7 @@ namespace ns3 {
             {
                 Ptr<Packet> p = Create<Packet>(m_size);
                 SeqTsHeader requestType;
-                requestType.SetSeq(2);
+                requestType.SetSeq(0);
                 p->AddHeader(requestType);
                 m_socket->Send(p);
             }
@@ -318,31 +282,27 @@ namespace ns3 {
     {
         NS_LOG_FUNCTION(this << socket);
 
-        if ((std::rand() % 100) >= (m_lossRate * 100))
-        {
-            Ptr<Packet> packet;
-            Address from;
-            Address localAddress;
+        Ptr<Packet> packet;
+        Address from;
+        Address localAddress;
 
-            while ((packet = socket->RecvFrom(from)))
+        while ((packet = socket->RecvFrom(from)))
+        {
+            if ((std::rand() % 100) >= (m_lossRate * 100))
             {
                 socket->GetSockName(localAddress);
-                m_rxTrace(packet);
+                m_rxTrace(packet, from);
                 m_rxTraceWithAddresses(packet, from, localAddress);
 
                 SeqTsHeader seqTs;
                 packet->RemoveHeader(seqTs);
                 m_packets.insert(seqTs.GetSeq());
 
-                packet->RemoveAllPacketTags();
-                packet->RemoveAllByteTags();
-
                 packet->AddHeader(seqTs);
-                SeqTsHeader pauseTs;              
-                pauseTs.SetSeq(3);
-                packet->AddHeader(pauseTs);
-
-                socket->SendTo(packet, 0, from);
+                SeqTsHeader requestType;
+                requestType.SetSeq(3);
+                packet->AddHeader(requestType);
+                m_socket->Send(packet);
             }
         }
     }

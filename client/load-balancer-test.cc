@@ -1,14 +1,5 @@
-#include "load-balancer-helper.h"
-#include "load-balancer.h"
-#include "load-balancer-header.h"
-#include "client.h"
-#include "client-helper.h"
-#include "server-helper.h"
-#include "server.h"
-
 #include <iostream>
 #include <fstream>
-
 #include "ns3/core-module.h"
 #include "ns3/uinteger.h"
 #include "ns3/network-module.h"
@@ -17,17 +8,56 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/applications-module.h"
+#include "ns3/seq-ts-header.h"
+#include "load-balancer.h"
+#include "load-balancer-helper.h"
+#include "load-balancer-header.h"
+#include "client.h"
+#include "client-helper.h"
+#include "server.h"
+#include "server-helper.h"
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("test-lb");
 
 static void
+TxTime(std::string context, Ptr<const Packet> packet, const Address& address)
+{
+    if (context == "DST0")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 sends packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST1")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 sends packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST2")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 sends packet seq " << seqTs.GetSeq());
+    }
+}
+
+static void
 RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
 {
-    if (context == "LB")
+    if (context == "SRC0")
     {
-        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << " LB   receives " << packet->GetSize());
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 0 receives packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "LB")
+    {
+        SeqTsHeader requestType;
+        packet->PeekHeader(requestType);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "LB receives packet type " << requestType.GetSeq());
     }
     else if (context == "DST0")
     {
@@ -61,14 +91,38 @@ RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
     }
 }
 
+static void
+RtxTime(std::string context, Ptr<const Packet> packet, const Address& address)
+{
+    if (context == "DST0")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 retransmits packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST1")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 retransmits packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST2")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 retransmits packet seq " << seqTs.GetSeq());
+    }
+}
+
 int
 main(int argc, char *argv[])
 {
     LogComponentEnable("test-lb", LOG_LEVEL_INFO);
-    LogComponentEnable("LoadBalancer", LOG_LEVEL_DEBUG);
+    //LogComponentEnable("LoadBalancer", LOG_LEVEL_DEBUG);
     //LogComponentEnable("StreamingClientApplication", LOG_LEVEL_FUNCTION);
     //LogComponentEnable("StreamingServerApplication", LOG_LEVEL_FUNCTION);
-    LogComponentEnable("StreamingServerApplication", LOG_LEVEL_INFO);
+    //LogComponentEnable("StreamingServerApplication", LOG_LEVEL_INFO);
+    LogComponentEnable("StreamingClientApplication", LOG_LEVEL_INFO);
 
     Ptr<Node> nSRC0 = CreateObject<Node>();
     Ptr<Node> nSRC1 = CreateObject<Node>();
@@ -93,7 +147,7 @@ main(int argc, char *argv[])
     stack.Install(dstNodes);
 
     PointToPointHelper p2p;
-    p2p.SetDeviceAttribute("DataRate", StringValue("1Mbps"));
+    p2p.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
     p2p.SetChannelAttribute("Delay", StringValue("1ms"));
 
     NetDeviceContainer frontNICs0 = p2p.Install(frontNodes0);
@@ -130,11 +184,10 @@ main(int argc, char *argv[])
     Address backDSTAddress2(InetSocketAddress(backInets2.GetAddress(1), dstPort));
 
     StreamingClientHelper src0(frontInets0.GetAddress(0), lbPort);
-    src0.SetAttribute("Port", UintegerValue(9));
-    src0.SetAttribute("LossRate", DoubleValue(0.));
+    src0.SetAttribute("LossRate", DoubleValue(0.1));
     src0.SetAttribute("PacketSize", UintegerValue(100));
     src0.SetAttribute("PacketsPerFrame", UintegerValue(100));
-    src0.SetAttribute("BufferingSize", UintegerValue(5));
+    src0.SetAttribute("BufferingSize", UintegerValue(1));
     src0.SetAttribute("PauseSize", UintegerValue(30));
     src0.SetAttribute("ResumeSize", UintegerValue(25));
     src0.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
@@ -142,31 +195,8 @@ main(int argc, char *argv[])
     src0.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
     ApplicationContainer src0App = src0.Install(nSRC0);
     src0App.Start(Seconds(1.0));
-    src0App.Stop(Seconds(10.0));
-
-    /*OnOffHelper src0("ns3::UdpSocketFactory", frontLBAddress0);
-    src0.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    src0.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    src0.SetAttribute("DataRate", DataRateValue(100000));
-    ApplicationContainer src0App = src0.Install(nSRC0);
-    src0App.Start(Seconds(1.0));
     src0App.Stop(Seconds(5.0));
-
-    OnOffHelper src1("ns3::UdpSocketFactory", frontLBAddress1);
-    src1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    src1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    src1.SetAttribute("DataRate", DataRateValue(100000));
-    ApplicationContainer src1App = src1.Install(nSRC1);
-    src1App.Start(Seconds(1.0));
-    src1App.Stop(Seconds(5.0));
-
-    OnOffHelper src2("ns3::UdpSocketFactory", frontLBAddress2);
-    src2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    src2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    src2.SetAttribute("DataRate", DataRateValue(100000));
-    ApplicationContainer src2App = src2.Install(nSRC2);
-    src2App.Start(Seconds(1.0));
-    src2App.Stop(Seconds(5.0));*/
+    src0App.Get(0)->TraceConnect("Rx", "SRC0", MakeCallback(&RxTime));
 
     LoadBalancerHelper lb;
     lb.SetAttribute("Port", UintegerValue(lbPort));
@@ -178,28 +208,19 @@ main(int argc, char *argv[])
     lb.SetAttribute("ThirdWeight", UintegerValue(1));
     ApplicationContainer lbApp = lb.Install(nLB);
     lbApp.Start(Seconds(1.0));
-    lbApp.Stop(Seconds(10.0));
-    //lbApp.Get(0)->TraceConnect("Rx", "LB", MakeCallback(&RxTime));
+    lbApp.Stop(Seconds(5.0));
+    lbApp.Get(0)->TraceConnect("Rx", "LB", MakeCallback(&RxTime));
 
     StreamingServerHelper dst0(dstPort);
-    dst0.SetAttribute("Interval", TimeValue(Seconds(1. / 5.)));
-    //dst0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+    dst0.SetAttribute("Interval", TimeValue(Seconds(1. / 90.)));
+    dst0.SetAttribute("PacketSize", UintegerValue(100));
+    dst0.SetAttribute("PacketsPerFrame", UintegerValue(100));
     ApplicationContainer dst0App = dst0.Install(nDST0);
     dst0App.Start(Seconds(1.0));
     dst0App.Stop(Seconds(5.0));
-    //dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&RxTime));
-
-    PacketSinkHelper dst1("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
-    ApplicationContainer dst1App = dst1.Install(nDST1);
-    dst1App.Start(Seconds(1.0));
-    dst1App.Stop(Seconds(5.0));
-    dst1App.Get(0)->TraceConnect("Rx", "DST1", MakeCallback(&RxTime));
-
-    PacketSinkHelper dst2("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
-    ApplicationContainer dst2App = dst2.Install(nDST2);
-    dst2App.Start(Seconds(1.0));
-    dst2App.Stop(Seconds(5.0));
-    dst2App.Get(0)->TraceConnect("Rx", "DST2", MakeCallback(&RxTime));
+    dst0App.Get(0)->TraceConnect("Tx", "DST0", MakeCallback(&TxTime));
+    dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&RxTime));
+    dst0App.Get(0)->TraceConnect("Rtx", "DST0", MakeCallback(&RtxTime));
 
     Simulator::Stop(Seconds(5.0));
     Simulator::Run();

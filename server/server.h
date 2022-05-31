@@ -25,6 +25,10 @@
 #include "ns3/address.h"
 #include "ns3/traced-callback.h"
 
+#include <vector>
+#include <queue>
+#include <set>
+
 namespace ns3 {
 
 class Socket;
@@ -48,24 +52,26 @@ public:
    * \brief Get the type ID.
    * \return the object TypeId
    */
-  static TypeId GetTypeId (void);
-  StreamingStreamer ();
-  virtual ~StreamingStreamer ();
-
-
-	void SetDataSize (uint32_t dataSize);
-	uint32_t GetDataSize (void) const;
+    static TypeId GetTypeId (void);
+    StreamingStreamer ();
+    virtual ~StreamingStreamer ();
+  
+    void SetDataSize (uint32_t dataSize);
+    uint32_t GetDataSize (void) const;
 
 protected:
-  virtual void DoDispose (void);
+    virtual void DoDispose (void);
 
 private:
 
-  virtual void StartApplication (void);
-  virtual void StopApplication (void);
-
-	void ScheduleTransmit (Time dt);
-	void Send (void);
+    virtual void StartApplication (void);
+    virtual void StopApplication (void);
+  
+    void ScheduleTransmit (Time dt);
+    void Send (void);
+  
+    void ScheduleFind(Time dt);
+    void FindLossPackets(void);
 
   /**
    * \brief Handle a packet reception.
@@ -74,35 +80,43 @@ private:
    *
    * \param socket the socket the packet was received to.
    */
-  void HandleRead (Ptr<Socket> socket);
+    void HandleRead (Ptr<Socket> socket);
 
 	uint32_t m_count;
 	Time m_interval;
 	uint32_t m_size;
 
-	uint32_t seqNumber;
-	bool isPause;
+	uint32_t m_seqNumber;
+	bool m_isPause;
 
 	uint32_t m_dataSize;
 	uint8_t *m_data;
 
-  uint16_t m_port; //!< Port on which we listen for incoming packets.
-  Ptr<Socket> m_socket; //!< IPv4 Socket
-	Ptr<Socket> m_socketRecv;
-  Ptr<Socket> m_socket6; //!< IPv6 Socket
-  Address m_local; //!< local multicast address
+    uint16_t m_port; //!< Port on which we listen for incoming packets.
+    Ptr<Socket> m_socket; //!< IPv4 Socket
+    Ptr<Socket> m_socketRecv;
+    Ptr<Socket> m_socket6; //!< IPv6 Socket
+    Address m_local; //!< local multicast address
 
 	Address m_peerAddress;
 	uint16_t m_peerPort;
+
 	EventId m_sendEvent;
+    EventId m_findEvent;
 
-	TracedCallback<Ptr<const Packet> > m_txTrace;
-  /// Callbacks for tracing the packet Rx events
-  TracedCallback<Ptr<const Packet> > m_rxTrace;
+    std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t> > m_ackBuffer;
+    std::set<uint32_t> m_lossPackets;
 
-	TracedCallback<Ptr<const Packet>, const Address &, const Address &> m_txTraceWithAddresses;
-  /// Callbacks for tracing the packet Rx events, includes source and destination addresses
-  TracedCallback<Ptr<const Packet>, const Address &, const Address &> m_rxTraceWithAddresses;
+    uint32_t m_curSeq;
+    uint32_t m_packetsPerFrame;
+
+    TracedCallback<Ptr<const Packet>, const Address&> m_txTrace;
+    TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;
+    TracedCallback<Ptr<const Packet>, const Address&> m_rtxTrace;
+
+    TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_txTraceWithAddresses;
+    TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_rxTraceWithAddresses;
+    TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_rtxTraceWithAddresses;   
 };
 
 } // namespace ns3

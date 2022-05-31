@@ -48,10 +48,6 @@ namespace ns3 {
         Address m_peerAddress;
         uint16_t m_peerPort;
 
-        Ptr<Socket> m_socketRecv;
-        Address m_local;
-        uint16_t m_port;
-
         double m_lossRate;
 
         uint32_t m_size;
@@ -74,7 +70,7 @@ namespace ns3 {
 
         uint32_t m_frameIdx;
 
-        TracedCallback<Ptr<const Packet> > m_rxTrace;
+        TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;
         TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_rxTraceWithAddresses;
     };
 }
