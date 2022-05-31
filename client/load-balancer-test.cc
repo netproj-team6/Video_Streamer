@@ -9,6 +9,7 @@
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/applications-module.h"
 #include "ns3/seq-ts-header.h"
+
 #include "ns3/load-balancer.h"
 #include "ns3/load-balancer-helper.h"
 #include "ns3/load-balancer-header.h"
@@ -52,6 +53,12 @@ RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
         SeqTsHeader seqTs;
         packet->PeekHeader(seqTs);
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 0 receives packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "SRC1")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 1 receives packet seq " << seqTs.GetSeq());
     }
     else if (context == "LB")
     {
@@ -198,6 +205,21 @@ main(int argc, char *argv[])
     src0App.Stop(Seconds(5.0));
     src0App.Get(0)->TraceConnect("Rx", "SRC0", MakeCallback(&RxTime));
 
+    StreamingClientHelper src1(frontInets1.GetAddress(0), lbPort);
+    src0.SetAttribute("LossRate", DoubleValue(0.1));
+    src0.SetAttribute("PacketSize", UintegerValue(100));
+    src0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+    src0.SetAttribute("BufferingSize", UintegerValue(1));
+    src0.SetAttribute("PauseSize", UintegerValue(30));
+    src0.SetAttribute("ResumeSize", UintegerValue(25));
+    src0.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+    src0.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+    src0.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+    ApplicationContainer src1App = src1.Install(nSRC1);
+    src1App.Start(Seconds(1.0));
+    src1App.Stop(Seconds(5.0));
+    src1App.Get(0)->TraceConnect("Rx", "SRC1", MakeCallback(&RxTime));
+
     LoadBalancerHelper lb;
     lb.SetAttribute("Port", UintegerValue(lbPort));
     lb.SetAttribute("FirstAddress", AddressValue(backDSTAddress0));
@@ -221,6 +243,17 @@ main(int argc, char *argv[])
     dst0App.Get(0)->TraceConnect("Tx", "DST0", MakeCallback(&TxTime));
     dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&RxTime));
     dst0App.Get(0)->TraceConnect("Rtx", "DST0", MakeCallback(&RtxTime));
+
+    StreamingServerHelper dst1(dstPort);
+    dst0.SetAttribute("Interval", TimeValue(Seconds(1. / 90.)));
+    dst0.SetAttribute("PacketSize", UintegerValue(100));
+    dst0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+    ApplicationContainer dst1App = dst1.Install(nDST1);
+    dst1App.Start(Seconds(1.0));
+    dst1App.Stop(Seconds(5.0));
+    dst1App.Get(0)->TraceConnect("Tx", "DST1", MakeCallback(&TxTime));
+    dst1App.Get(0)->TraceConnect("Rx", "DST1", MakeCallback(&RxTime));
+    dst1App.Get(0)->TraceConnect("Rtx", "DST1", MakeCallback(&RtxTime));
 
     Simulator::Stop(Seconds(5.0));
     Simulator::Run();

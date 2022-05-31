@@ -10,15 +10,23 @@
 #include "ns3/csma-module.h"
 
 #include "ns3/load-balancer-helper.h"
+#include "server/server-helper.h"
+#include "server/server.h"
+#include "client/client-helper.h"
+#include "client/client.h"
 
 #include <iostream>
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("skku_chat");
+NS_LOG_COMPONENT_DEFINE("video_strreamer");
+
+
+
+namespace vs {
 
 static void
-RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
+RxTime_0(std::string context, Ptr<const Packet> packet, const Address &address)
 {
     if (context == "LB")
     {
@@ -56,6 +64,107 @@ RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
     }
 }
 
+static void
+TxTime(std::string context, Ptr<const Packet> packet, const Address& address)
+{
+    if (context == "DST0")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 sends packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST1")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 sends packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST2")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 sends packet seq " << seqTs.GetSeq());
+    }
+}
+
+static void
+RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
+{
+    if (context == "SRC0")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 0 receives packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "SRC1")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "SRC 1 receives packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "LB")
+    {
+        SeqTsHeader requestType;
+        packet->PeekHeader(requestType);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "LB receives packet type " << requestType.GetSeq());
+    }
+    else if (context == "DST0")
+    {
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
+    }
+    else if (context == "DST1")
+    {
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
+    }
+    else if (context == "DST2")
+    {
+        LoadBalancerHeader header;
+        packet->PeekHeader(header);
+        uint32_t clientAddress = header.GetIpv4Address();
+        uint16_t clientPort = header.GetPort();
+        InetSocketAddress transport(Ipv4Address(clientAddress), clientPort);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 receives " << packet->GetSize() << " from (" <<
+                    clientAddress << " " << clientPort << " " << transport << ")");
+    }
+}
+
+static void
+RtxTime(std::string context, Ptr<const Packet> packet, const Address& address)
+{
+    if (context == "DST0")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 0 retransmits packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST1")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 1 retransmits packet seq " << seqTs.GetSeq());
+    }
+    else if (context == "DST2")
+    {
+        SeqTsHeader seqTs;
+        packet->PeekHeader(seqTs);
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 retransmits packet seq " << seqTs.GetSeq());
+    }
+}
+};
+
+
 
 int main(int argc, char *argv[])
 {
@@ -74,6 +183,10 @@ int main(int argc, char *argv[])
 	uint32_t numOfCsma= 3;
 
 	LogComponentEnable("LoadBalancer", LOG_LEVEL_ALL);
+	// LogComponentEnable("StreamingClientApplication", LOG_LEVEL_INFO);
+	LogComponentEnable("StreamingServerApplication", LOG_LEVEL_ALL);
+	LogComponentEnable("StreamingClientApplication", LOG_LEVEL_ALL);
+	LogComponentEnable("video_strreamer", LOG_LEVEL_ALL);
 
 	// Parsing 
 	CommandLine cmd;
@@ -356,6 +469,7 @@ int main(int argc, char *argv[])
     clientApp.Stop(Seconds(simulationTime + 1));
 
 	// ////////////////////////////////////////////////////////
+	int32_t test_case = 1;
 
 	uint16_t lbPort = 1010;
 	uint16_t dstPort = 2020;
@@ -374,74 +488,171 @@ int main(int argc, char *argv[])
     ApplicationContainer lbApp = lb.Install(balanceServerNode);
     lbApp.Start(Seconds(1.0));
     lbApp.Stop(Seconds(simulationTime + 1));
-    lbApp.Get(0)->TraceConnect("Rx", "LB", MakeCallback(&RxTime));
+	if(test_case == 0)
+	{
+		lbApp.Get(0)->TraceConnect("Rx", "LB", MakeCallback(&vs::RxTime_0));
+	}
+	else
+	{
+		lbApp.Get(0)->TraceConnect("Rx", "LB", MakeCallback(&vs::RxTime));
+	}
+    
 
 	// Address clientAddress0(InetSocketAddress(globalUsers_interfaces.GetAddress(0), lbPort));
     // Address clientAddress1(InetSocketAddress(globalUsers_interfaces.GetAddress(1), lbPort));
     // Address clientAddress2(InetSocketAddress(globalUsers_interfaces.GetAddress(1), lbPort));
 
 	Address lbAddress(InetSocketAddress(balance_interfaces.GetAddress(0), lbPort));
+	Ipv4Address lbv4Address = balance_interfaces.GetAddress(0);
 
-	OnOffHelper src0("ns3::UdpSocketFactory", lbAddress);
-    src0.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    src0.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    src0.SetAttribute("DataRate", DataRateValue(100000));
-    ApplicationContainer src0App = src0.Install(globalUserNodes.Get(0));
-    src0App.Start(Seconds(1.0));
-    src0App.Stop(Seconds(simulationTime + 1));
+	
+	if(test_case == 0)
+	{
+		OnOffHelper src0("ns3::UdpSocketFactory", lbAddress);
+		src0.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+		src0.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+		src0.SetAttribute("DataRate", DataRateValue(100000));
+		ApplicationContainer src0App = src0.Install(globalUserNodes.Get(0));
+		src0App.Start(Seconds(1.0));
+		src0App.Stop(Seconds(simulationTime + 1));
 
-    OnOffHelper src1("ns3::UdpSocketFactory", lbAddress);
-    src1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    src1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    src1.SetAttribute("DataRate", DataRateValue(100000));
-    ApplicationContainer src1App = src1.Install(globalUserNodes.Get(1));
-    src1App.Start(Seconds(1.0));
-    src1App.Stop(Seconds(simulationTime + 1));
+		OnOffHelper src1("ns3::UdpSocketFactory", lbAddress);
+		src1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+		src1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+		src1.SetAttribute("DataRate", DataRateValue(100000));
+		ApplicationContainer src1App = src1.Install(globalUserNodes.Get(1));
+		src1App.Start(Seconds(1.0));
+		src1App.Stop(Seconds(simulationTime + 1));
 
-    OnOffHelper src2("ns3::UdpSocketFactory", lbAddress);
-    src2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    src2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    src2.SetAttribute("DataRate", DataRateValue(100000));
-    ApplicationContainer src2App = src2.Install(globalUserNodes.Get(2));
-    src2App.Start(Seconds(1.0));
-    src2App.Stop(Seconds(simulationTime + 1));
+		OnOffHelper src2("ns3::UdpSocketFactory", lbAddress);
+		src2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+		src2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+		src2.SetAttribute("DataRate", DataRateValue(100000));
+		ApplicationContainer src2App = src2.Install(globalUserNodes.Get(2));
+		src2App.Start(Seconds(1.0));
+    	src2App.Stop(Seconds(simulationTime + 1));
+	
+		PacketSinkHelper dst0("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
+		ApplicationContainer dst0App = dst0.Install(streamServerNodes.Get(0));
+		dst0App.Start(Seconds(1.0));
+		dst0App.Stop(Seconds(5.0));
+		dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&vs::RxTime_0));
 
-	PacketSinkHelper dst0("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
-    ApplicationContainer dst0App = dst0.Install(streamServerNodes.Get(0));
-    dst0App.Start(Seconds(1.0));
-    dst0App.Stop(Seconds(5.0));
-    dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&RxTime));
+		PacketSinkHelper dst1("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
+		ApplicationContainer dst1App = dst1.Install(streamServerNodes.Get(1));
+		dst1App.Start(Seconds(1.0));
+		dst1App.Stop(Seconds(5.0));
+		dst1App.Get(0)->TraceConnect("Rx", "DST1", MakeCallback(&vs::RxTime_0));
 
-    PacketSinkHelper dst1("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
-    ApplicationContainer dst1App = dst1.Install(streamServerNodes.Get(1));
-    dst1App.Start(Seconds(1.0));
-    dst1App.Stop(Seconds(5.0));
-    dst1App.Get(0)->TraceConnect("Rx", "DST1", MakeCallback(&RxTime));
+		PacketSinkHelper dst2("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
+		ApplicationContainer dst2App = dst2.Install(streamServerNodes.Get(2));
+		dst2App.Start(Seconds(1.0));
+		dst2App.Stop(Seconds(5.0));
+		dst2App.Get(0)->TraceConnect("Rx", "DST2", MakeCallback(&vs::RxTime_0));
+	}
+	else if (test_case == 1)
+	{
+		StreamingServerHelper dst0(dstPort);
+		dst0.SetAttribute("Interval", TimeValue(Seconds(1. / 90.)));
+		dst0.SetAttribute("PacketSize", UintegerValue(100));
+		dst0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		ApplicationContainer dst0App = dst0.Install(streamServerNodes.Get(0));
+		dst0App.Start(Seconds(1.0));
+		dst0App.Stop(Seconds(5.0));
+		dst0App.Get(0)->TraceConnect("Tx", "DST0", MakeCallback(&vs::TxTime));
+		dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&vs::RxTime));
+		dst0App.Get(0)->TraceConnect("Rtx", "DST0", MakeCallback(&vs::RtxTime));
 
-    PacketSinkHelper dst2("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
-    ApplicationContainer dst2App = dst2.Install(streamServerNodes.Get(2));
-    dst2App.Start(Seconds(1.0));
-    dst2App.Stop(Seconds(5.0));
-    dst2App.Get(0)->TraceConnect("Rx", "DST2", MakeCallback(&RxTime));
+		StreamingServerHelper dst1(dstPort);
+		dst0.SetAttribute("Interval", TimeValue(Seconds(1. / 90.)));
+		dst0.SetAttribute("PacketSize", UintegerValue(100));
+		dst0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		ApplicationContainer dst1App = dst1.Install(streamServerNodes.Get(1));
+		dst1App.Start(Seconds(1.0));
+		dst1App.Stop(Seconds(5.0));
+		dst1App.Get(0)->TraceConnect("Tx", "DST1", MakeCallback(&vs::TxTime));
+		dst1App.Get(0)->TraceConnect("Rx", "DST1", MakeCallback(&vs::RxTime));
+		dst1App.Get(0)->TraceConnect("Rtx", "DST1", MakeCallback(&vs::RtxTime));
+
+		StreamingClientHelper src0(lbv4Address, lbPort);
+		src0.SetAttribute("LossRate", DoubleValue(0.1));
+		src0.SetAttribute("PacketSize", UintegerValue(100));
+		src0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		src0.SetAttribute("BufferingSize", UintegerValue(1));
+		src0.SetAttribute("PauseSize", UintegerValue(30));
+		src0.SetAttribute("ResumeSize", UintegerValue(25));
+		src0.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+		src0.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+		src0.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+		ApplicationContainer src0App = src0.Install(globalUserNodes.Get(0));
+		src0App.Start(Seconds(1.0));
+		src0App.Stop(Seconds(5.0));
+		src0App.Get(0)->TraceConnect("Rx", "SRC0", MakeCallback(&vs::RxTime));
+
+		// StreamingClientHelper src1(lbv4Address, lbPort);
+		// src0.SetAttribute("LossRate", DoubleValue(0.1));
+		// src0.SetAttribute("PacketSize", UintegerValue(100));
+		// src0.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		// src0.SetAttribute("BufferingSize", UintegerValue(1));
+		// src0.SetAttribute("PauseSize", UintegerValue(30));
+		// src0.SetAttribute("ResumeSize", UintegerValue(25));
+		// src0.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+		// src0.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+		// src0.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+		// ApplicationContainer src1App = src1.Install(globalUserNodes.Get(1));
+		// src1App.Start(Seconds(1.0));
+		// src1App.Stop(Seconds(5.0));
+		// src1App.Get(0)->TraceConnect("Rx", "SRC1", MakeCallback(&vs::RxTime));
+
+
+	}
 
 
 	// Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
 	
 	
-	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("skku_chat.routes", std::ios::out);
+	Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("video_strreamer.routes", std::ios::out);
 	Ipv4GlobalRoutingHelper globalRouting;
 	globalRouting.PopulateRoutingTables();
 	globalRouting.PrintRoutingTableAllAt (Seconds (0.1), routingStream);
 
+	for (uint32_t i = 0; i < numOfSwitches; i++)
+	{
+		Ipv4Address left_add = Ipv4Address::ConvertFrom(interfacesGS_Left.GetAddress(i));
+		Ipv4Address right_add = Ipv4Address::ConvertFrom(interfacesGS_Left.GetAddress((i+3) % 4));
+		NS_LOG_INFO( i << "th global swith address left: " << left_add << " right: " << right_add);
+	}
+
+	for (uint32_t i = 0; i < numOfStream; i++)
+	{
+		Ipv4Address hub_add = Ipv4Address::ConvertFrom(streamHub_interfaces.GetAddress(i));
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(Stream_interfaces.GetAddress(i));
+		NS_LOG_INFO( i << "th stream server address hub: " << hub_add << " own: " << own_add);
+	}
+
+	{
+		Ipv4Address hub_add = Ipv4Address::ConvertFrom(streamHub_interfaces.GetAddress(numOfStream));
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(balance_interfaces.GetAddress(0));
+		NS_LOG_INFO( "balance server address hub: " << hub_add << " own: " << own_add);
+	}
+
+	for (uint32_t i = 0; i < numOfGlobalUsers; i++)
+	{
+		Ipv4Address hub_add = Ipv4Address::ConvertFrom(globalUserHub_interfaces.GetAddress(i));
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(globalUsers_interfaces.GetAddress(i));
+		NS_LOG_INFO( i << "th global user address hub: " << hub_add << " own: " << own_add);
+	}
+
+	
 
 	Simulator::Stop(Seconds(simulationTime + 2));
     Simulator::Run();
     Simulator::Destroy();
 
-	uint32_t totalPacketsRecv = DynamicCast<UdpServer>(serverApp.Get(0))->GetReceived();
-    double throughtput = totalPacketsRecv * payloadSize * 8 / (simulationTime * 1000000.0);
-    std::cout << "Throughput: " << throughtput << " Mbps" << "\n";
+	// uint32_t totalPacketsRecv = DynamicCast<UdpServer>(serverApp.Get(0))->GetReceived();
+    // double throughtput = totalPacketsRecv * payloadSize * 8 / (simulationTime * 1000000.0);
+    // std::cout << "Throughput: " << throughtput << " Mbps" << "\n";
 
 
 	return 0;

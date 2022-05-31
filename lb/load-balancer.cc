@@ -207,6 +207,7 @@ LoadBalancer::AssignTargetAddress(uint32_t from)
         index = session->second;
         target = m_states.at(index).first;
         NS_LOG_DEBUG("### FIND\t" << from << " <=> " << target);
+        NS_LOG_DEBUG("### FIND\t" << from << " <=> " << InetSocketAddress::ConvertFrom(target).GetIpv4() << " port: " << 
         return target;
     }
 
@@ -223,6 +224,8 @@ LoadBalancer::AssignTargetAddress(uint32_t from)
                 m_curIndex = index + 1;
                 target = m_states.at(index).first;
                 NS_LOG_DEBUG("### Assign\t" << from << " <=> " << target);
+                NS_LOG_DEBUG("### Assign\t" << from << " <=> " << InetSocketAddress::ConvertFrom(target).GetIpv4() << " port: " << 
+                    InetSocketAddress::ConvertFrom(target).GetPort());
                 return target;
             }
         }
