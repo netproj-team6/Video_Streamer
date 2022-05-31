@@ -30,3 +30,9 @@ https://jonjjon.notion.site/2-127d5f99cf6e4bf3b234dd995fc69b9d
 ### 1.4 /ns-allinone-3.29/ns-3.29 경로에서 아래 명령어로 실행
 
 - ```./waf --run streaming ```
+
+## 2. 클라이언트 동작
+
+## 3. 서버 동작
+
+## 2. 로드 밸런싱 서버 동작
