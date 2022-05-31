@@ -37,6 +37,6 @@ https://jonjjon.notion.site/2-127d5f99cf6e4bf3b234dd995fc69b9d
 ## 2. 클라이언트 동작
 [클라이언트에 대한 자세한 설명은 여기로](https://github.com/netproj-team6/Video_Streamer/tree/main/client)
 ## 3. 서버 동작
-[서버에 대한 자세한 설명은 여기로](https://github.com/netproj-team6/Video_Streamer/tree/main/lb)
+[서버에 대한 자세한 설명은 여기로](https://github.com/netproj-team6/Video_Streamer/tree/main/server)
 ## 2. LB(Load-Balancing) 서버 동작
 [LB 서버에 대한 자세한 설명은 여기로](https://github.com/netproj-team6/Video_Streamer/tree/main/server)
