@@ -12,8 +12,8 @@
 #include "ns3/packet.h"
 #include "ns3/uinteger.h"
 #include "ns3/seq-ts-header.h"
+#include "ns3/load-balancer-header.h"
 #include "server.h"
-#include "load-balancer-header.h"
 
 namespace ns3 {
 
