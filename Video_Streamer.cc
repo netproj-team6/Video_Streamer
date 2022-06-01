@@ -28,7 +28,7 @@ namespace vs {
 
 static void
 RxTime_0(std::string context, Ptr<const Packet> packet, const Address &address)
-{   /*
+{   
     if (context == "LB")
     {
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << " LB   receives " << packet->GetSize());
@@ -63,13 +63,13 @@ RxTime_0(std::string context, Ptr<const Packet> packet, const Address &address)
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "Stream Server 2 receives " << packet->GetSize() << " from (" <<
                     clientAddress << " " << clientPort << " " << transport << ")");
     }
-    */
+    
 }
 
 static void
 TxTime(std::string context, Ptr<const Packet> packet, const Address& address)
 {
-    /*
+    
     if (context == "Stream Server 0")
     {
         SeqTsHeader seqTs;
@@ -88,22 +88,21 @@ TxTime(std::string context, Ptr<const Packet> packet, const Address& address)
         packet->PeekHeader(seqTs);
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "Stream Server 2 sends packet seq " << seqTs.GetSeq());
     }
-    */
+    
 }
 
 static void
 RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
 {
     
-    if (context == "Wifi 0")
+    if (context == "Wifi 2")
     {
         SeqTsHeader seqTs;
         packet->PeekHeader(seqTs);
-        NS_LOG_INFO(Simulator::Now().GetSeconds() << " " << seqTs.GetSeq());
-        //NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << context << " receives packet seq " << seqTs.GetSeq());
+        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << context << " receives packet seq " << seqTs.GetSeq());
     }
 
-    /*
+    
 	else if (context.substr(0, 4) == "CSMA")
     {
         SeqTsHeader seqTs;
@@ -134,14 +133,14 @@ RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << context << " receives " << packet->GetSize() << " from (" <<
                     Ipv4Address(clientAddress) << " " << clientPort << " " << InetSocketAddress::ConvertFrom(transport).GetIpv4()  << ")");
     }
-    */
+    
 
 }
 
 static void
 RtxTime(std::string context, Ptr<const Packet> packet, const Address& address)
 {
-    /*
+    
     if (context == "DST0")
     {
         SeqTsHeader seqTs;
@@ -160,7 +159,7 @@ RtxTime(std::string context, Ptr<const Packet> packet, const Address& address)
         packet->PeekHeader(seqTs);
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 retransmits packet seq " << seqTs.GetSeq());
     }
-    */
+    
 }
 };
 
@@ -171,7 +170,7 @@ int main(int argc, char *argv[])
 
 	double LossRate = 0.;
 	double DownRate = 0.0;
-	double ErrorRate = 0.001;
+	double ErrorRate = 0.005;
 	uint32_t payloadSize = 1472; // bytes
 	uint64_t simulationTime = 1;
     uint32_t nMpdu = 10;
@@ -601,7 +600,7 @@ int main(int argc, char *argv[])
 		streamApp2.Get(0)->TraceConnect("Rx", "Stream Server 2", MakeCallback(&vs::RxTime));
 		streamApp2.Get(0)->TraceConnect("Rtx", "Stream Server 2", MakeCallback(&vs::RtxTime));
         
-        /*
+        
 		StreamingClientHelper clientHelper0(lbv4Address, lbPort);
 		clientHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -646,7 +645,7 @@ int main(int argc, char *argv[])
 		clientGlobalUserApp2.Start(Seconds(1.0));
 		clientGlobalUserApp2.Stop(Seconds(5.0));
 		clientGlobalUserApp2.Get(0)->TraceConnect("Rx", "Global User 2", MakeCallback(&vs::RxTime));
-        */
+        
         
 		StreamingClientHelper clientCsmaHelper0(lbv4Address, lbPort);
 		clientCsmaHelper0.SetAttribute("LossRate", DoubleValue(0.1));
@@ -692,8 +691,8 @@ int main(int argc, char *argv[])
 		clientCsmaApp2.Start(Seconds(1.0));
 		clientCsmaApp2.Stop(Seconds(5.0));
 		clientCsmaApp2.Get(0)->TraceConnect("Rx", "CSMA 2", MakeCallback(&vs::RxTime));
-
-        /*
+        
+        
 		StreamingClientHelper clientWifiHelper0(lbv4Address, lbPort);
 		clientWifiHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientWifiHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -738,7 +737,7 @@ int main(int argc, char *argv[])
 		clientWifiApp2.Start(Seconds(1.0));
 		clientWifiApp2.Stop(Seconds(5.0));
 		clientWifiApp2.Get(0)->TraceConnect("Rx", "Wifi 2", MakeCallback(&vs::RxTime));
-        */
+       
 	}
 
 
