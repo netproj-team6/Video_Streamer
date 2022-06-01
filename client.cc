@@ -89,6 +89,7 @@ namespace ns3 {
         m_consumerEvent = EventId();
         m_frameIdx = 0;
         m_packetFlag = false;
+        m_nPackets = 0;
     }
 
     StreamingClient::~StreamingClient()
@@ -291,6 +292,9 @@ namespace ns3 {
         {
             if ((std::rand() % 100) >= (m_lossRate * 100))
             {
+                m_nPackets++;
+                m_nTrace(m_nPackets);
+
                 socket->GetSockName(localAddress);
                 m_rxTrace(packet, from);
                 m_rxTraceWithAddresses(packet, from, localAddress);

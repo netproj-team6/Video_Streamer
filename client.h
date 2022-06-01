@@ -71,6 +71,9 @@ namespace ns3 {
         uint32_t m_frameIdx;
         bool m_packetFlag;
 
+        uint32_t m_nPackets;
+
+        TracedCallback<uint32_t> m_nTrace;
         TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;
         TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_rxTraceWithAddresses;
     };
