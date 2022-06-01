@@ -48,7 +48,7 @@
 
 5. Load Balancer 관련 유의사항 참조
 
-   [Github Link](https://github.com/netproj-team6/Video_Streamer/tree/main/lb#%EC%9C%A0%EC%9D%98-%EC%82%AC%ED%95%AD)
+   [GitHub Link](https://github.com/netproj-team6/Video_Streamer/tree/main/lb#%EC%9C%A0%EC%9D%98-%EC%82%AC%ED%95%AD)
 
 ## 클라이언트 동작
 
