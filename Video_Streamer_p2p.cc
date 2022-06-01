@@ -600,7 +600,7 @@ int main(int argc, char *argv[])
 		streamApp2.Get(0)->TraceConnect("Rx", "Stream Server 2", MakeCallback(&vs::RxTime));
 		streamApp2.Get(0)->TraceConnect("Rtx", "Stream Server 2", MakeCallback(&vs::RtxTime));
         
-       /* 
+        
 		StreamingClientHelper clientHelper0(lbv4Address, lbPort);
 		clientHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -645,8 +645,8 @@ int main(int argc, char *argv[])
 		clientGlobalUserApp2.Start(Seconds(1.0));
 		clientGlobalUserApp2.Stop(Seconds(5.0));
 		clientGlobalUserApp2.Get(0)->TraceConnect("Rx", "Global User 2", MakeCallback(&vs::RxTime));
-        */
-       
+        
+       /* 
 		StreamingClientHelper clientCsmaHelper0(lbv4Address, lbPort);
 		clientCsmaHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientCsmaHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -691,7 +691,7 @@ int main(int argc, char *argv[])
 		clientCsmaApp2.Start(Seconds(1.0));
 		clientCsmaApp2.Stop(Seconds(5.0));
 		clientCsmaApp2.Get(0)->TraceConnect("Rx", "CSMA 2", MakeCallback(&vs::RxTime));
-       
+        */
        /* 
 		StreamingClientHelper clientWifiHelper0(lbv4Address, lbPort);
 		clientWifiHelper0.SetAttribute("LossRate", DoubleValue(0.1));
