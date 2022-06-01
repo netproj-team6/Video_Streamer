@@ -21,13 +21,14 @@
 git clone https://github.com/netproj-team6/Video_Streamer.git
 ```
 
-1. scratch/streaming 경로에 아래 파일 복사
+1. scratch/Video_Streamer 경로에 아래 파일 복사 - 시나리오 파일은 둘 중 하나만 선택하여 넣어둘것
 
    - ```client.cc```
    - ```client.h```
    - ```client-helper.cc```
    - ```client-helper.h```
-   - ```load-balancer-test.cc(시나리오 파일, 추후 이름 변경 예정)```
+   - ```Video_Streamer_p2p.cc(시나리오)```
+   - ```Video_Streamer_CSMA.cc(시나리오)```
    - ```server.cc```
    - ```server.h```
    - ```server-helper.cc```
@@ -58,6 +59,7 @@ git clone https://github.com/netproj-team6/Video_Streamer.git
 
 6. Load Balancer 관련 유의사항 참조
    [GitHub Link](https://github.com/netproj-team6/Video_Streamer/tree/main/lb#%EC%9C%A0%EC%9D%98-%EC%82%AC%ED%95%AD)
+
 
 - `./waf build`시 빌드되도록 `src/applications/wscript` 파일을 아래와 같이 수정해야 함
 
