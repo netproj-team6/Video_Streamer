@@ -88,6 +88,7 @@ namespace ns3 {
         m_generatorEvent = EventId();
         m_consumerEvent = EventId();
         m_frameIdx = 0;
+        m_packetFlag = false;
     }
 
     StreamingClient::~StreamingClient()
@@ -296,6 +297,14 @@ namespace ns3 {
 
                 SeqTsHeader seqTs;
                 packet->RemoveHeader(seqTs);
+
+                if (!m_packetFlag)
+                {
+                    // m_frameIdx = seqTs / m_packetsPerFrame;
+                    m_frameIdx = seqTs.GetSeq() / m_packetsPerFrame;
+                    m_packetFlag = true;
+                }
+
                 m_packets.insert(seqTs.GetSeq());
 
                 packet->AddHeader(seqTs);

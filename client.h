@@ -69,6 +69,7 @@ namespace ns3 {
         std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t> > m_frameBuffer;
 
         uint32_t m_frameIdx;
+        bool m_packetFlag;
 
         TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;
         TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_rxTraceWithAddresses;

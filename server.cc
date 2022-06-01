@@ -72,19 +72,20 @@ StreamingStreamer::StreamingStreamer ()
 {
   NS_LOG_FUNCTION (this);
 
-	m_socket = 0;
+	// m_socket = 0;
 	m_sendEvent = EventId ();
 	m_data = 0;
 	m_dataSize = 0;
-	m_curSeq = 0;
+	//m_curSeq = 0;
 	m_seqNumber = 0;
 	m_isPause = false;
+	m_isSend = false;
 }
 // destroyer
 StreamingStreamer::~StreamingStreamer()
 {
   NS_LOG_FUNCTION (this);
-  m_socket = 0;
+//   m_socket = 0;
   m_socket6 = 0;
 
 	delete [] m_data;
@@ -129,19 +130,29 @@ StreamingStreamer::StartApplication (void)
 	}
     // packet information check
   	m_socketRecv->SetRecvCallback(MakeCallback (&StreamingStreamer::HandleRead, this)); 
+	
+	ScheduleTransmit(Seconds(0.));
+	ScheduleFind(Seconds(0.));
 }
 
 void
 StreamingStreamer::StopApplication ()
 {
-  NS_LOG_FUNCTION (this);
+	NS_LOG_FUNCTION (this);
 
-  if (m_socket != 0)
-    {
-      m_socket->Close ();
-      m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
-			m_socket = 0;
-    }
+	for (uint32_t i = 0; i < m_sockets.size(); i++)
+	{
+		m_sockets.at(i)->Close();
+		m_sockets.at(i)->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
+		m_sockets.at(i) = 0;
+	}
+
+	//   if (m_socket != 0)
+	//   {
+	// 	  m_socket->Close();
+	// 	  m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
+	// 	  m_socket = 0;
+	//   }
 	if (m_socketRecv != 0)
 		{
 			m_socketRecv->Close ();
@@ -199,44 +210,65 @@ StreamingStreamer::Send (void)
 
 	if (!m_isPause)
 	{
+	
 		if (!m_lossPackets.empty())
 		{
-			for (auto i = m_lossPackets.begin(); i != m_lossPackets.end(); i++)
+	
+			// for (auto i = m_lossPackets.begin(); i != m_lossPackets.end(); i++)
+			if(m_peersAddress.size() != m_peersAddress.size())
 			{
+				NS_LOG_DEBUG("The size of m_peersAddress and m_peersAddress is differnet!!!");
+			}
+	
+			for(uint32_t i = 0; i < m_peersAddress.size(); i++)
+			{
+				Ptr<Socket> m_socket = m_sockets.at(i);
+				uint32_t m_peerAddress = m_peersAddress.at(i);
+
+				uint32_t lossPacket = m_lossPackets.front();
+				m_lossPackets.pop();
 				Ptr<Packet> p = Create<Packet>(m_size);
 
 				Address localAddress;
 				m_socket->GetSockName(localAddress);
 
 				SeqTsHeader seqTs;
-				seqTs.SetSeq(*i);
+				seqTs.SetSeq(lossPacket);
 				p->AddHeader(seqTs);
 
 				m_rtxTrace(p, localAddress);
-				m_rtxTraceWithAddresses(p, localAddress, InetSocketAddress(Ipv4Address::ConvertFrom(m_peerAddress), m_peerPort));
+				m_rtxTraceWithAddresses(p, localAddress, InetSocketAddress(ns3::Ipv4Address(m_peerAddress), m_peerPort));
 
 				m_socket->Send(p);
-				cnt++;
 			}
+			cnt++;
 		}
 		if (m_packetsPerFrame > cnt)
 		{
-			for (uint32_t i = 0; i < m_packetsPerFrame - cnt; i++)
+
+			for(uint32_t i = 0; i < m_peersAddress.size(); i++)
 			{
-				Ptr<Packet> p = Create<Packet>(m_size);
+				Ptr<Socket> m_socket = m_sockets.at(i);
+				uint32_t m_peerAddress = m_peersAddress.at(i);
 
-				Address localAddress;
-				m_socket->GetSockName(localAddress);
+				// for (uint32_t i = 0; i < m_packetsPerFrame - cnt; i++)
+				{
+					Ptr<Packet> p = Create<Packet>(m_size);
 
-				SeqTsHeader seqTs;
-				seqTs.SetSeq(m_seqNumber++);
-				p->AddHeader(seqTs);
+					Address localAddress;
+					m_socket->GetSockName(localAddress);
 
-				m_txTrace(p, localAddress);
-				m_txTraceWithAddresses(p, localAddress, InetSocketAddress(Ipv4Address::ConvertFrom(m_peerAddress), m_peerPort));
+					SeqTsHeader seqTs;
+					seqTs.SetSeq(m_seqNumber);
+					p->AddHeader(seqTs);
 
-				m_socket->Send(p);
+					m_txTrace(p, localAddress);
+					m_txTraceWithAddresses(p, localAddress, InetSocketAddress(ns3::Ipv4Address(m_peerAddress), m_peerPort));
+
+					m_socket->Send(p);
+				}
 			}
+			m_seqNumber++;
 		}
 	}
 	ScheduleTransmit(m_interval);
@@ -247,24 +279,26 @@ StreamingStreamer::FindLossPackets(void)
 {
 	NS_LOG_FUNCTION(this);
 	NS_ASSERT(m_findEvent.IsExpired());
-
-	if (!m_ackBuffer.empty() && m_ackBuffer.size() > m_packetsPerFrame)
+	for (size_t i = 0; i < m_peersAddress.size(); i++)
 	{
-		for (uint32_t i = 0; i < m_packetsPerFrame; i++)
+		if (!m_ackBuffers.at(i).empty() && m_ackBuffers.at(i).size() > m_packetsPerFrame)
 		{
-			if (m_ackBuffer.top() < m_curSeq)
+			for (uint32_t i = 0; i < m_packetsPerFrame; i++)
 			{
-				m_ackBuffer.pop();
-			}
-			else if (m_ackBuffer.top() == m_curSeq)
-			{
-				m_ackBuffer.pop();
-				m_curSeq++;
-			}
-			else
-			{
-				m_lossPackets.insert(m_curSeq);
-				m_curSeq++;
+				if (m_ackBuffers.at(i).top() < m_curSeqs.at(i))
+				{
+					m_ackBuffers.at(i).pop();
+				}
+				else if (m_ackBuffers.at(i).top() == m_curSeqs.at(i))
+				{
+					m_ackBuffers.at(i).pop();
+					m_curSeqs.at(i)++;
+				}
+				else
+				{
+					m_lossPackets.push(m_curSeqs.at(i));
+					m_curSeqs.at(i)++;
+				}
 			}
 		}
 	}
@@ -289,6 +323,7 @@ StreamingStreamer::HandleRead (Ptr<Socket> socket)
 		packet->RemoveHeader(header);
 		uint32_t clientAddress = header.GetIpv4Address();
 		uint16_t clientPort = header.GetPort();
+		m_peers.insert(std::pair<uint32_t, uint16_t>(clientAddress, clientPort));
 
 		SeqTsHeader requestType;
 		packet->RemoveHeader(requestType);
@@ -298,60 +333,144 @@ StreamingStreamer::HandleRead (Ptr<Socket> socket)
 		{
 			SeqTsHeader seqTs;
 			packet->RemoveHeader(seqTs);
-			m_ackBuffer.push(seqTs.GetSeq());
-			if (m_lossPackets.count(seqTs.GetSeq()))
+			for (uint32_t i = 0; i < m_peersAddress.size(); i++)
 			{
-				m_lossPackets.erase(m_lossPackets.find(seqTs.GetSeq()));
+				if (m_peersAddress.at(i) == clientAddress)
+				{
+					if (m_ackBuffers.at(i).size() == 0)
+					{
+						m_curSeqs.at(i) = seqTs.GetSeq();
+					}
+					m_ackBuffers.at(i).push(seqTs.GetSeq());
+					break;
+				}
 			}
+			// Because we pop a loss packet every send time, we don't need to check loss packet queue.
+			// if (m_lossPackets.count(seqTs.GetSeq()))
+			// {
+			// 	m_lossPackets.erase(m_lossPackets.find(seqTs.GetSeq()));
+			// }
 		}
 		else if (type == 1)
 		{
-			m_isPause = true;
+			for (uint32_t i = 0; i < m_peersAddress.size(); i++)
+			{
+				if (m_peersAddress.at(i) == clientAddress)
+				{
+					m_pauseResume.at(i) = true;
+					break;
+				}
+			}
 		}
 		else if (type == 0)
 		{
-			m_isPause = false;
+			for (uint32_t i = 0; i < m_peersAddress.size(); i++)
+			{
+				if (m_peersAddress.at(i) == clientAddress)
+				{
+					m_pauseResume.at(i) = false;
+					break;
+				}
+			}
 		}
 		else if (type == 2)
-		{
-			if (m_peerAddress != Ipv4Address(clientAddress))
+		{	
+			for (uint32_t i = 0; i < m_peersAddress.size(); i++)
 			{
-				m_peerAddress = Ipv4Address(clientAddress);
-				m_peerPort = clientPort;
-				m_isPause = false;
-				NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "] SERVER\trecv streaming request");
-				if (m_socket == 0)
+				if (m_peersAddress.at(i) == clientAddress)
 				{
-					TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
-					m_socket = Socket::CreateSocket(GetNode(), tid);
-					if (Ipv4Address::IsMatchingType(m_peerAddress) == true)
-					{
-						if (m_socket->Bind() == -1)
-							NS_FATAL_ERROR("Failed to bind socket");
-						m_socket->Connect(InetSocketAddress(Ipv4Address::ConvertFrom(m_peerAddress), m_peerPort));
-					}
-					else if (Ipv6Address::IsMatchingType(m_peerAddress) == true) {
-						if (m_socket->Bind6() == -1)
-							NS_FATAL_ERROR("Failed to bind socket");
-						m_socket->Connect(Inet6SocketAddress(Ipv6Address::ConvertFrom(m_peerAddress), m_peerPort));
-					}
-					else if (InetSocketAddress::IsMatchingType(m_peerAddress) == true) {
-						if (m_socket->Bind() == -1)
-							NS_FATAL_ERROR("Failed to bind socket");
-						m_socket->Connect(m_peerAddress);
-					}
-					else if (Inet6SocketAddress::IsMatchingType(m_peerAddress) == true) {
-						if (m_socket->Bind6() == -1)
-							NS_FATAL_ERROR("Failed to bind socket");
-						m_socket->Connect(m_peerAddress);
-					}
-					else {
-						NS_ASSERT_MSG(false, "Incompatible address type: " << m_peerAddress);
-					}
+					break;
 				}
-				m_socket->SetAllowBroadcast(true);
-				ScheduleTransmit(Seconds(0.));
-				ScheduleFind(Seconds(0.));
+				if (i == m_peersAddress.size() - 1)
+				{
+					Address peerAddress = Ipv4Address(clientAddress);
+					uint16_t peerPort = clientPort;
+					NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "] SERVER\trecv streaming request");
+					Ptr<Socket> socketTemp = 0;
+					if (socketTemp == 0)
+					{
+						TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
+						socketTemp = Socket::CreateSocket(GetNode(), tid);
+						if (Ipv4Address::IsMatchingType(peerAddress) == true)
+						{
+							if (socketTemp->Bind() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(InetSocketAddress(Ipv4Address::ConvertFrom(peerAddress), peerPort));
+						}
+						else if (Ipv6Address::IsMatchingType(peerAddress) == true) {
+							if (socketTemp->Bind6() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(Inet6SocketAddress(Ipv6Address::ConvertFrom(peerAddress), peerPort));
+						}
+						else if (InetSocketAddress::IsMatchingType(peerAddress) == true) {
+							if (socketTemp->Bind() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(peerAddress);
+						}
+						else if (Inet6SocketAddress::IsMatchingType(peerAddress) == true) {
+							if (socketTemp->Bind6() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(peerAddress);
+						}
+						else {
+							NS_ASSERT_MSG(false, "Incompatible address type: " << peerAddress);
+						}
+					}
+					socketTemp->SetAllowBroadcast(true);
+					m_sockets.push_back(socketTemp);
+					m_pauseResume.push_back(false);
+					m_peersAddress.push_back(clientAddress);
+
+					std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t>> tempBuffer;
+					m_ackBuffers.push_back(tempBuffer);
+					m_curSeqs.push_back(0);
+				}
+			}
+
+			if (m_peersAddress.size() == 0)
+			{
+					NS_LOG_INFO("!!!!!!!! 1");
+					Address peerAddress = Ipv4Address(clientAddress);
+					uint16_t peerPort = clientPort;
+					NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "] SERVER\trecv streaming request");
+					Ptr<Socket> socketTemp = 0;
+					if (socketTemp == 0)
+					{
+						TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
+						socketTemp = Socket::CreateSocket(GetNode(), tid);
+						if (Ipv4Address::IsMatchingType(peerAddress) == true)
+						{
+							if (socketTemp->Bind() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(InetSocketAddress(Ipv4Address::ConvertFrom(peerAddress), peerPort));
+						}
+						else if (Ipv6Address::IsMatchingType(peerAddress) == true) {
+							if (socketTemp->Bind6() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(Inet6SocketAddress(Ipv6Address::ConvertFrom(peerAddress), peerPort));
+						}
+						else if (InetSocketAddress::IsMatchingType(peerAddress) == true) {
+							if (socketTemp->Bind() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(peerAddress);
+						}
+						else if (Inet6SocketAddress::IsMatchingType(peerAddress) == true) {
+							if (socketTemp->Bind6() == -1)
+								NS_FATAL_ERROR("Failed to bind socket");
+							socketTemp->Connect(peerAddress);
+						}
+						else {
+							NS_ASSERT_MSG(false, "Incompatible address type: " << peerAddress);
+						}
+					}
+					socketTemp->SetAllowBroadcast(true);
+					m_sockets.push_back(socketTemp);
+					m_pauseResume.push_back(false);
+					m_peersAddress.push_back(clientAddress);
+
+					std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t>> tempBuffer;
+					m_ackBuffers.push_back(tempBuffer);
+					m_curSeqs.push_back(0);
 			}
 		}
     }

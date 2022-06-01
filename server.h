@@ -28,6 +28,7 @@
 #include <vector>
 #include <queue>
 #include <set>
+#include <map>
 
 namespace ns3 {
 
@@ -93,22 +94,31 @@ private:
 	uint8_t *m_data;
 
     uint16_t m_port; //!< Port on which we listen for incoming packets.
-    Ptr<Socket> m_socket; //!< IPv4 Socket
+    // Ptr<Socket> m_socket; //!< IPv4 Socket
     Ptr<Socket> m_socketRecv;
     Ptr<Socket> m_socket6; //!< IPv6 Socket
     Address m_local; //!< local multicast address
 
-	Address m_peerAddress;
+	// Address m_peerAddress;
 	uint16_t m_peerPort;
 
 	EventId m_sendEvent;
     EventId m_findEvent;
 
-    std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t> > m_ackBuffer;
-    std::set<uint32_t> m_lossPackets;
+    //std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t>> m_ackBuffer;
+    std::queue<uint32_t> m_lossPackets;
+    std::map<uint32_t, uint16_t> m_peers;
 
-    uint32_t m_curSeq;
+    std::vector<Ptr<Socket>> m_sockets;
+    std::vector<bool> m_pauseResume;
+    std::vector<uint32_t> m_peersAddress;
+    std::vector<std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<uint32_t>>> m_ackBuffers;
+    std::vector<uint32_t> m_curSeqs;
+
+    //uint32_t m_curSeq;
     uint32_t m_packetsPerFrame;
+
+    bool m_isSend;
 
     TracedCallback<Ptr<const Packet>, const Address&> m_txTrace;
     TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;

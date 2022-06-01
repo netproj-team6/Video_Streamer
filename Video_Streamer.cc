@@ -8,19 +8,20 @@
 #include "ns3/wifi-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/csma-module.h"
+#include "ns3/bridge-module.h"
 
 #include "ns3/load-balancer-helper.h"
-#include "server/server-helper.h"
-#include "server/server.h"
-#include "client/client-helper.h"
-#include "client/client.h"
-#include "ns3/bridge-module.h"
+#include "server-helper.h"
+#include "server.h"
+#include "client-helper.h"
+#include "client.h"
+
 
 #include <iostream>
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("video_strreamer");
+NS_LOG_COMPONENT_DEFINE("video_streamer");
 
 
 
@@ -175,9 +176,9 @@ int main(int argc, char *argv[])
 
 	// LogComponentEnable("LoadBalancer", LOG_LEVEL_ALL);
 	// LogComponentEnable("StreamingClientApplication", LOG_LEVEL_INFO);
-	// LogComponentEnable("StreamingServerApplication", LOG_LEVEL_ALL);
+	LogComponentEnable("StreamingServerApplication", LOG_LEVEL_INFO);
 	// LogComponentEnable("StreamingClientApplication", LOG_LEVEL_ALL);
-	LogComponentEnable("video_strreamer", LOG_LEVEL_ALL);
+	LogComponentEnable("video_streamer", LOG_LEVEL_ALL);
 
 	// LogComponentEnable("PointToPointNetDevice", LOG_LEVEL_LOGIC);
 
@@ -653,35 +654,35 @@ int main(int argc, char *argv[])
 		clientCsmaApp0.Stop(Seconds(5.0));
 		clientCsmaApp0.Get(0)->TraceConnect("Rx", "CSMA 0", MakeCallback(&vs::RxTime));
 
-		StreamingClientHelper clientCsmaHelper1(lbv4Address, lbPort);
-		clientCsmaHelper1.SetAttribute("LossRate", DoubleValue(0.1));
-		clientCsmaHelper1.SetAttribute("PacketSize", UintegerValue(100));
-		clientCsmaHelper1.SetAttribute("PacketsPerFrame", UintegerValue(100));
-		clientCsmaHelper1.SetAttribute("BufferingSize", UintegerValue(1));
-		clientCsmaHelper1.SetAttribute("PauseSize", UintegerValue(30));
-		clientCsmaHelper1.SetAttribute("ResumeSize", UintegerValue(25));
-		clientCsmaHelper1.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
-		clientCsmaHelper1.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
-		clientCsmaHelper1.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
-		ApplicationContainer clientCsmaApp1 = clientCsmaHelper1.Install(csmaNodes.Get(1));
-		clientCsmaApp1.Start(Seconds(1.0));
-		clientCsmaApp1.Stop(Seconds(5.0));
-		clientCsmaApp1.Get(0)->TraceConnect("Rx", "CSMA 1", MakeCallback(&vs::RxTime));
+		// StreamingClientHelper clientCsmaHelper1(lbv4Address, lbPort);
+		// clientCsmaHelper1.SetAttribute("LossRate", DoubleValue(0.1));
+		// clientCsmaHelper1.SetAttribute("PacketSize", UintegerValue(100));
+		// clientCsmaHelper1.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		// clientCsmaHelper1.SetAttribute("BufferingSize", UintegerValue(1));
+		// clientCsmaHelper1.SetAttribute("PauseSize", UintegerValue(30));
+		// clientCsmaHelper1.SetAttribute("ResumeSize", UintegerValue(25));
+		// clientCsmaHelper1.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+		// clientCsmaHelper1.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+		// clientCsmaHelper1.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+		// ApplicationContainer clientCsmaApp1 = clientCsmaHelper1.Install(csmaNodes.Get(1));
+		// clientCsmaApp1.Start(Seconds(1.0));
+		// clientCsmaApp1.Stop(Seconds(5.0));
+		// clientCsmaApp1.Get(0)->TraceConnect("Rx", "CSMA 1", MakeCallback(&vs::RxTime));
 
-		StreamingClientHelper clientCsmaHelper2(lbv4Address, lbPort);
-		clientCsmaHelper2.SetAttribute("LossRate", DoubleValue(0.1));
-		clientCsmaHelper2.SetAttribute("PacketSize", UintegerValue(100));
-		clientCsmaHelper2.SetAttribute("PacketsPerFrame", UintegerValue(100));
-		clientCsmaHelper2.SetAttribute("BufferingSize", UintegerValue(1));
-		clientCsmaHelper2.SetAttribute("PauseSize", UintegerValue(30));
-		clientCsmaHelper2.SetAttribute("ResumeSize", UintegerValue(25));
-		clientCsmaHelper2.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
-		clientCsmaHelper2.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
-		clientCsmaHelper2.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
-		ApplicationContainer clientCsmaApp2 = clientCsmaHelper2.Install(csmaNodes.Get(2));
-		clientCsmaApp2.Start(Seconds(1.0));
-		clientCsmaApp2.Stop(Seconds(5.0));
-		clientCsmaApp2.Get(0)->TraceConnect("Rx", "CSMA 2", MakeCallback(&vs::RxTime));
+		// StreamingClientHelper clientCsmaHelper2(lbv4Address, lbPort);
+		// clientCsmaHelper2.SetAttribute("LossRate", DoubleValue(0.1));
+		// clientCsmaHelper2.SetAttribute("PacketSize", UintegerValue(100));
+		// clientCsmaHelper2.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		// clientCsmaHelper2.SetAttribute("BufferingSize", UintegerValue(1));
+		// clientCsmaHelper2.SetAttribute("PauseSize", UintegerValue(30));
+		// clientCsmaHelper2.SetAttribute("ResumeSize", UintegerValue(25));
+		// clientCsmaHelper2.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+		// clientCsmaHelper2.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+		// clientCsmaHelper2.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+		// ApplicationContainer clientCsmaApp2 = clientCsmaHelper2.Install(csmaNodes.Get(2));
+		// clientCsmaApp2.Start(Seconds(1.0));
+		// clientCsmaApp2.Stop(Seconds(5.0));
+		// clientCsmaApp2.Get(0)->TraceConnect("Rx", "CSMA 2", MakeCallback(&vs::RxTime));
 
 		StreamingClientHelper clientWifiHelper0(lbv4Address, lbPort);
 		clientWifiHelper0.SetAttribute("LossRate", DoubleValue(0.1));
@@ -698,35 +699,35 @@ int main(int argc, char *argv[])
 		clientWifiApp0.Stop(Seconds(5.0));
 		clientWifiApp0.Get(0)->TraceConnect("Rx", "Wifi 0", MakeCallback(&vs::RxTime));
 
-		StreamingClientHelper clientWifiHelper1(lbv4Address, lbPort);
-		clientWifiHelper1.SetAttribute("LossRate", DoubleValue(0.1));
-		clientWifiHelper1.SetAttribute("PacketSize", UintegerValue(100));
-		clientWifiHelper1.SetAttribute("PacketsPerFrame", UintegerValue(100));
-		clientWifiHelper1.SetAttribute("BufferingSize", UintegerValue(1));
-		clientWifiHelper1.SetAttribute("PauseSize", UintegerValue(30));
-		clientWifiHelper1.SetAttribute("ResumeSize", UintegerValue(25));
-		clientWifiHelper1.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
-		clientWifiHelper1.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
-		clientWifiHelper1.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
-		ApplicationContainer clientWifiApp1 = clientWifiHelper1.Install(wifiStaNode.Get(1));
-		clientWifiApp1.Start(Seconds(1.0));
-		clientWifiApp1.Stop(Seconds(5.0));
-		clientWifiApp1.Get(0)->TraceConnect("Rx", "Wifi 1", MakeCallback(&vs::RxTime));
+		// StreamingClientHelper clientWifiHelper1(lbv4Address, lbPort);
+		// clientWifiHelper1.SetAttribute("LossRate", DoubleValue(0.1));
+		// clientWifiHelper1.SetAttribute("PacketSize", UintegerValue(100));
+		// clientWifiHelper1.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		// clientWifiHelper1.SetAttribute("BufferingSize", UintegerValue(1));
+		// clientWifiHelper1.SetAttribute("PauseSize", UintegerValue(30));
+		// clientWifiHelper1.SetAttribute("ResumeSize", UintegerValue(25));
+		// clientWifiHelper1.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+		// clientWifiHelper1.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+		// clientWifiHelper1.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+		// ApplicationContainer clientWifiApp1 = clientWifiHelper1.Install(wifiStaNode.Get(1));
+		// clientWifiApp1.Start(Seconds(1.0));
+		// clientWifiApp1.Stop(Seconds(5.0));
+		// clientWifiApp1.Get(0)->TraceConnect("Rx", "Wifi 1", MakeCallback(&vs::RxTime));
 
-		StreamingClientHelper clientWifiHelper2(lbv4Address, lbPort);
-		clientWifiHelper2.SetAttribute("LossRate", DoubleValue(0.1));
-		clientWifiHelper2.SetAttribute("PacketSize", UintegerValue(100));
-		clientWifiHelper2.SetAttribute("PacketsPerFrame", UintegerValue(100));
-		clientWifiHelper2.SetAttribute("BufferingSize", UintegerValue(1));
-		clientWifiHelper2.SetAttribute("PauseSize", UintegerValue(30));
-		clientWifiHelper2.SetAttribute("ResumeSize", UintegerValue(25));
-		clientWifiHelper2.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
-		clientWifiHelper2.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
-		clientWifiHelper2.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
-		ApplicationContainer clientWifiApp2 = clientWifiHelper2.Install(wifiStaNode.Get(2));
-		clientWifiApp2.Start(Seconds(1.0));
-		clientWifiApp2.Stop(Seconds(5.0));
-		clientWifiApp2.Get(0)->TraceConnect("Rx", "Wifi 2", MakeCallback(&vs::RxTime));
+		// StreamingClientHelper clientWifiHelper2(lbv4Address, lbPort);
+		// clientWifiHelper2.SetAttribute("LossRate", DoubleValue(0.1));
+		// clientWifiHelper2.SetAttribute("PacketSize", UintegerValue(100));
+		// clientWifiHelper2.SetAttribute("PacketsPerFrame", UintegerValue(100));
+		// clientWifiHelper2.SetAttribute("BufferingSize", UintegerValue(1));
+		// clientWifiHelper2.SetAttribute("PauseSize", UintegerValue(30));
+		// clientWifiHelper2.SetAttribute("ResumeSize", UintegerValue(25));
+		// clientWifiHelper2.SetAttribute("RequestInterval", TimeValue(Seconds(1. / 10.)));
+		// clientWifiHelper2.SetAttribute("GeneratorInterval", TimeValue(Seconds(1. / 20.)));
+		// clientWifiHelper2.SetAttribute("ConsumerInterval", TimeValue(Seconds(1. / 60.)));
+		// ApplicationContainer clientWifiApp2 = clientWifiHelper2.Install(wifiStaNode.Get(2));
+		// clientWifiApp2.Start(Seconds(1.0));
+		// clientWifiApp2.Stop(Seconds(5.0));
+		// clientWifiApp2.Get(0)->TraceConnect("Rx", "Wifi 2", MakeCallback(&vs::RxTime));
 	}
 
 
