@@ -6,7 +6,16 @@
 #### 2. 해당 클라이언트에게 sequence number를 헤더(SeqTsHeader)에 포함시킨 스트리밍 패킷 전송
 
 ## 2. 스트리밍 서버 시나리오
-setAttribute관련 설명
+
+```
+StreamingServerHelper server(Port);                              // Port : 서버의 포트 (패킷을 받기 위해서 대기중)
+server.SetAttribute("Interval", TimeValue(Seconds(1. / 90.)));   // 패킷 보내는 간격
+server.SetAttribute("PacketSize", UintegerValue(100));           // 보낼 패킷의 크기
+server.SetAttribute("PacketsPerFrame", UintegerValue(100));      // 프레임 하나를 만드는데 필요한 패킷 수
+```
+
+- 예시에서 설정된 값들이 default, 변경해야 할 때만 SetAttribute 설정
+
 
 ### 시나리오 파일 스크린샷
 #### 1. ./waf 해보면 로그 결과로 LB 서버에서 보낸 ipv4 주소와 포트를 서버에서 제대로 받고 있음을 확인할 수 있음.
