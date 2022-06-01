@@ -149,11 +149,13 @@ main(int argc, char *argv[])
     LoadBalancerHelper lb;
     lb.SetAttribute("Port", UintegerValue(lbPort));
     lb.SetAttribute("FirstAddress", AddressValue(backDSTAddress0));
-    lb.SetAttribute("FirstWeight", UintegerValue(1));
+    lb.SetAttribute("FirstWeight", UintegerValue(5));
+    /*
     lb.SetAttribute("SecondAddress", AddressValue(backDSTAddress1));
     lb.SetAttribute("SecondWeight", UintegerValue(1));
     lb.SetAttribute("ThirdAddress", AddressValue(backDSTAddress2));
     lb.SetAttribute("ThirdWeight", UintegerValue(1));
+     */
     ApplicationContainer lbApp = lb.Install(nLB);
     lbApp.Start(Seconds(1.0));
     lbApp.Stop(Seconds(5.0));
@@ -165,6 +167,7 @@ main(int argc, char *argv[])
     dst0App.Stop(Seconds(5.0));
     dst0App.Get(0)->TraceConnect("Rx", "DST0", MakeCallback(&RxTime));
 
+    /*
     PacketSinkHelper dst1("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dstPort));
     ApplicationContainer dst1App = dst1.Install(nDST1);
     dst1App.Start(Seconds(1.0));
@@ -176,6 +179,7 @@ main(int argc, char *argv[])
     dst2App.Start(Seconds(1.0));
     dst2App.Stop(Seconds(5.0));
     dst2App.Get(0)->TraceConnect("Rx", "DST2", MakeCallback(&RxTime));
+     */
 
     Simulator::Stop(Seconds(5.0));
     Simulator::Run();

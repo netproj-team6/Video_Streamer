@@ -78,7 +78,8 @@ LoadBalancer::GetTypeId(void)
 
 LoadBalancer::LoadBalancer()
     : m_socket(0),
-    m_peerCnt(3),
+    m_peerCnt(0),
+    m_maxWeight(0),
     m_curRound(0),
     m_curIndex(0)
 {
@@ -128,12 +129,35 @@ LoadBalancer::StartApplication(void)
 
     m_socket->SetRecvCallback(MakeCallback(&LoadBalancer::HandleRead, this));
 
-    m_states.push_back(std::make_pair(m_peerAddress0, m_peerWeight0 - 1));
-    m_states.push_back(std::make_pair(m_peerAddress1, m_peerWeight1 - 1));
-    m_states.push_back(std::make_pair(m_peerAddress2, m_peerWeight2 - 1));
+    if (m_peerAddress0 != Address())
+    {
+        m_states.push_back(std::make_pair(m_peerAddress0, m_peerWeight0 - 1));
+        ++m_peerCnt;
+        if (m_peerWeight0 > m_maxWeight)
+        {
+            m_maxWeight = m_peerWeight0;
+        }
+    }
+    if (m_peerAddress1 != Address())
+    {
+        m_states.push_back(std::make_pair(m_peerAddress1, m_peerWeight1 - 1));
+        ++m_peerCnt;
+        if (m_peerWeight1 > m_maxWeight)
+        {
+            m_maxWeight = m_peerWeight1;
+        }
+    }
+    if (m_peerAddress2 != Address())
+    {
+        m_states.push_back(std::make_pair(m_peerAddress2, m_peerWeight2 - 1));
+        ++m_peerCnt;
+        if (m_peerWeight2 > m_maxWeight)
+        {
+            m_maxWeight = m_peerWeight2;
+        }
+    }
 
-    m_maxWeight = ((m_peerWeight0 > m_peerWeight1) && (m_peerWeight0 > m_peerWeight2)) ? m_peerWeight0 :
-            ((m_peerWeight1 > m_peerWeight0) && (m_peerWeight1 > m_peerWeight2)) ? m_peerWeight1 : m_peerWeight2;
+    NS_LOG_DEBUG("### LB Server Attribute\t(peerCnt, maxWeight): " << "(" << m_peerCnt << ", " << m_maxWeight << ")");
 }
 
 void
@@ -190,8 +214,6 @@ LoadBalancer::HandleRead(Ptr<Socket> socket)
                             InetSocketAddress::ConvertFrom(from).GetIpv4() << " port " << InetSocketAddress::ConvertFrom(from).GetPort());
         }
     }
-
-    // todo handle when client-streaming_server connection terminated using seqTs
 }
 
 Address
@@ -207,7 +229,6 @@ LoadBalancer::AssignTargetAddress(uint32_t from)
         index = session->second;
         target = m_states.at(index).first;
         NS_LOG_DEBUG("### FIND\t" << from << " <=> " << target);
-        NS_LOG_DEBUG("### FIND\t" << from << " <=> " << InetSocketAddress::ConvertFrom(target).GetIpv4() << " port: " << 
         return target;
     }
 
@@ -224,8 +245,6 @@ LoadBalancer::AssignTargetAddress(uint32_t from)
                 m_curIndex = index + 1;
                 target = m_states.at(index).first;
                 NS_LOG_DEBUG("### Assign\t" << from << " <=> " << target);
-                NS_LOG_DEBUG("### Assign\t" << from << " <=> " << InetSocketAddress::ConvertFrom(target).GetIpv4() << " port: " << 
-                    InetSocketAddress::ConvertFrom(target).GetPort());
                 return target;
             }
         }
