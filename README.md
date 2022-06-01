@@ -47,8 +47,36 @@
    ```
 
 5. Load Balancer 관련 유의사항 참조
-
    [GitHub Link](https://github.com/netproj-team6/Video_Streamer/tree/main/lb#%EC%9C%A0%EC%9D%98-%EC%82%AC%ED%95%AD)
+
+- `./waf build`시 빌드되도록 `src/applications/wscript` 파일을 아래와 같이 수정해야 함
+
+  ```
+  def build(bld):
+    # ... #
+    
+    module.source = [
+        # ... #
+        'model/load-balancer.cc',
+        'model/load-balancer-header.cc',
+        'helper/load-balancer-helper.cc'
+        ]
+    
+    # ... #
+    
+    headers.source = [
+        # ... #
+        'model/load-balancer.h',
+        'model/load-balancer-header.h',
+        'helper/load-balancer-helper.h'
+        ]
+    
+    # ... #
+  ```
+
+  
+
+   
 
 ## 클라이언트 동작
 
