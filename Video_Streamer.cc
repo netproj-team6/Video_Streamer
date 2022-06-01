@@ -20,7 +20,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("video_strreamer");
+NS_LOG_COMPONENT_DEFINE("video_streamer");
 
 
 
@@ -28,7 +28,7 @@ namespace vs {
 
 static void
 RxTime_0(std::string context, Ptr<const Packet> packet, const Address &address)
-{
+{   /*
     if (context == "LB")
     {
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << " LB   receives " << packet->GetSize());
@@ -63,11 +63,13 @@ RxTime_0(std::string context, Ptr<const Packet> packet, const Address &address)
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "Stream Server 2 receives " << packet->GetSize() << " from (" <<
                     clientAddress << " " << clientPort << " " << transport << ")");
     }
+    */
 }
 
 static void
 TxTime(std::string context, Ptr<const Packet> packet, const Address& address)
 {
+    /*
     if (context == "Stream Server 0")
     {
         SeqTsHeader seqTs;
@@ -86,18 +88,22 @@ TxTime(std::string context, Ptr<const Packet> packet, const Address& address)
         packet->PeekHeader(seqTs);
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "Stream Server 2 sends packet seq " << seqTs.GetSeq());
     }
+    */
 }
 
 static void
 RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
 {
-    if (context.substr(0, 11) == "Global User")
+    
+    if (context == "CSMA User 0")
     {
         SeqTsHeader seqTs;
         packet->PeekHeader(seqTs);
-        NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << context << " receives packet seq " << seqTs.GetSeq());
+        NS_LOG_INFO(Simulator::Now().GetSeconds() << " " << seqTs.GetSeq());
+        //NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << context << " receives packet seq " << seqTs.GetSeq());
     }
 
+    /*
 	else if (context.substr(0, 4) == "CSMA")
     {
         SeqTsHeader seqTs;
@@ -128,12 +134,14 @@ RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << context << " receives " << packet->GetSize() << " from (" <<
                     Ipv4Address(clientAddress) << " " << clientPort << " " << InetSocketAddress::ConvertFrom(transport).GetIpv4()  << ")");
     }
+    */
 
 }
 
 static void
 RtxTime(std::string context, Ptr<const Packet> packet, const Address& address)
 {
+    /*
     if (context == "DST0")
     {
         SeqTsHeader seqTs;
@@ -152,6 +160,7 @@ RtxTime(std::string context, Ptr<const Packet> packet, const Address& address)
         packet->PeekHeader(seqTs);
         NS_LOG_INFO("[" << Simulator::Now().GetSeconds() << "]   \t" << "DST 2 retransmits packet seq " << seqTs.GetSeq());
     }
+    */
 }
 };
 
@@ -177,7 +186,7 @@ int main(int argc, char *argv[])
 	// LogComponentEnable("StreamingClientApplication", LOG_LEVEL_INFO);
 	// LogComponentEnable("StreamingServerApplication", LOG_LEVEL_ALL);
 	// LogComponentEnable("StreamingClientApplication", LOG_LEVEL_ALL);
-	LogComponentEnable("video_strreamer", LOG_LEVEL_ALL);
+	LogComponentEnable("video_streamer", LOG_LEVEL_INFO);
 
 	// LogComponentEnable("PointToPointNetDevice", LOG_LEVEL_LOGIC);
 
@@ -569,7 +578,7 @@ int main(int argc, char *argv[])
 		streamApp0.Get(0)->TraceConnect("Tx", "Stream Server 0", MakeCallback(&vs::TxTime));
 		streamApp0.Get(0)->TraceConnect("Rx", "Stream Server 0", MakeCallback(&vs::RxTime));
 		streamApp0.Get(0)->TraceConnect("Rtx", "Stream Server 0", MakeCallback(&vs::RtxTime));
-
+        
 		StreamingServerHelper streamHelper1(dstPort);
 		streamHelper1.SetAttribute("Interval", TimeValue(Seconds(1. / 90.)));
 		streamHelper1.SetAttribute("PacketSize", UintegerValue(100));
@@ -591,7 +600,8 @@ int main(int argc, char *argv[])
 		streamApp2.Get(0)->TraceConnect("Tx", "Stream Server 2", MakeCallback(&vs::TxTime));
 		streamApp2.Get(0)->TraceConnect("Rx", "Stream Server 2", MakeCallback(&vs::RxTime));
 		streamApp2.Get(0)->TraceConnect("Rtx", "Stream Server 2", MakeCallback(&vs::RtxTime));
-
+        
+        /*
 		StreamingClientHelper clientHelper0(lbv4Address, lbPort);
 		clientHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -636,8 +646,8 @@ int main(int argc, char *argv[])
 		clientGlobalUserApp2.Start(Seconds(1.0));
 		clientGlobalUserApp2.Stop(Seconds(5.0));
 		clientGlobalUserApp2.Get(0)->TraceConnect("Rx", "Global User 2", MakeCallback(&vs::RxTime));
-
-
+        */
+        
 		StreamingClientHelper clientCsmaHelper0(lbv4Address, lbPort);
 		clientCsmaHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientCsmaHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -683,6 +693,7 @@ int main(int argc, char *argv[])
 		clientCsmaApp2.Stop(Seconds(5.0));
 		clientCsmaApp2.Get(0)->TraceConnect("Rx", "CSMA 2", MakeCallback(&vs::RxTime));
 
+        /*
 		StreamingClientHelper clientWifiHelper0(lbv4Address, lbPort);
 		clientWifiHelper0.SetAttribute("LossRate", DoubleValue(0.1));
 		clientWifiHelper0.SetAttribute("PacketSize", UintegerValue(100));
@@ -727,6 +738,7 @@ int main(int argc, char *argv[])
 		clientWifiApp2.Start(Seconds(1.0));
 		clientWifiApp2.Stop(Seconds(5.0));
 		clientWifiApp2.Get(0)->TraceConnect("Rx", "Wifi 2", MakeCallback(&vs::RxTime));
+        */
 	}
 
 
