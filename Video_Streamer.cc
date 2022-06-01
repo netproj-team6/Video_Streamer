@@ -95,7 +95,7 @@ static void
 RxTime(std::string context, Ptr<const Packet> packet, const Address &address)
 {
     
-    if (context == "CSMA 2")
+    if (context == "Wifi 0")
     {
         SeqTsHeader seqTs;
         packet->PeekHeader(seqTs);
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
 	double LossRate = 0.;
 	double DownRate = 0.0;
-	double ErrorRate = 0.005;
+	double ErrorRate = 0.001;
 	uint32_t payloadSize = 1472; // bytes
 	uint64_t simulationTime = 1;
     uint32_t nMpdu = 10;
