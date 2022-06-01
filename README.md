@@ -22,7 +22,7 @@
    - ```client.h```
    - ```client-helper.cc```
    - ```client-helper.h```
-   - ```load-balancer-test.cc```
+   - ```load-balancer-test.cc(시나리오 파일, 추후 이름 변경 예정)```
    - ```server.cc```
    - ```server.h```
    - ```server-helper.cc```
