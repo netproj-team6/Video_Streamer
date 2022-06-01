@@ -742,7 +742,7 @@ int main(int argc, char *argv[])
 	for (uint32_t i = 0; i < numOfSwitches; i++)
 	{
 		Ipv4Address left_add = Ipv4Address::ConvertFrom(gs_interfaceLeft.GetAddress(i));
-		Ipv4Address right_add = Ipv4Address::ConvertFrom(gs_interfaceLeft.GetAddress((i+3) % 4));
+		Ipv4Address right_add = Ipv4Address::ConvertFrom(gs_interfaceRight.GetAddress((i+3) % 4));
 		NS_LOG_INFO( i << "th global swith address left: " << left_add << " right: " << right_add);
 	}
 
@@ -764,6 +764,34 @@ int main(int argc, char *argv[])
 		Ipv4Address hub_add = Ipv4Address::ConvertFrom(guHub_interfaces.GetAddress(i));
 		Ipv4Address own_add = Ipv4Address::ConvertFrom(gu_interfaces.GetAddress(i));
 		NS_LOG_INFO( i << "th global user address hub: " << hub_add << " own: " << own_add);
+	}
+
+	{
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(csma_interfaces.GetAddress(0));
+		NS_LOG_INFO(" csma address hub: " << own_add);
+	}
+
+	for (uint32_t i = 0; i < numOfCsma; i++)
+	{
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(csma_interfaces.GetAddress(i+1));
+		NS_LOG_INFO( i << "th csma user address " << " own: " << own_add);
+	}
+
+	{
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(wifiApOutHub_interfaces.GetAddress(0));
+		NS_LOG_INFO(" wifi AP out Hub address hub: " << own_add);
+
+		own_add = Ipv4Address::ConvertFrom(wifiApOut_interfaces.GetAddress(0));
+		NS_LOG_INFO(" wifi AP out address hub: " << own_add);
+
+		own_add = Ipv4Address::ConvertFrom(Ap_interface.GetAddress(0));
+		NS_LOG_INFO(" wifi AP address hub: " << own_add);
+	}
+
+	for (uint32_t i = 0; i < numOfWifiUsers; i++)
+	{
+		Ipv4Address own_add = Ipv4Address::ConvertFrom(Sta_interface.GetAddress(i));
+		NS_LOG_INFO( i << "th wifi user address " << " own: " << own_add);
 	}
 
 	{
